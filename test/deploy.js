@@ -236,3 +236,30 @@ test.serial(
     t.throws(() => kubectl.call())
   }
 )
+
+test.serial(
+  'a deploy pushes only secrets and accepts an env that only has a plain file',
+  t => {
+    const cwd = project({ fixture: 'app' })
+    const fs = require('node:fs')
+    const path = require('node:path')
+    fs.writeFileSync(
+      path.join(cwd, 'config', 'staging.yml'),
+      'LOG_LEVEL: info\nS3_KEY: staging-s3\n'
+    )
+    const kubectl = recordingBinary('kubectl')
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () =>
+      onesecret.kubernetes({
+        cwd,
+        env: 'staging',
+        name: 'api-env',
+        kubectl: kubectl.file
+      })
+    )
+    const { data } = yaml.load(kubectl.call().input)
+    const decoded = name => Buffer.from(data[name], 'base64').toString()
+    t.false(Object.hasOwn(data, 'LOG_LEVEL'))
+    t.false(Object.hasOwn(data, 'S3_KEY'))
+    t.is(decoded('API_TOKEN'), 'Bearer default #token')
+  }
+)

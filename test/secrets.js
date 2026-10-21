@@ -1,5 +1,6 @@
 'use strict'
 
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const { default: test } = require('ava')
@@ -148,13 +149,13 @@ test.serial('a failing or silent keyCommand explains itself', t => {
   )
 })
 
-test.serial('package.json can move the secrets directory', t => {
+test.serial('package.json can move the config directory', t => {
   const cwd = temporaryDir('moved')
   fs.cpSync(project({ fixture: 'app' }), path.join(cwd), { recursive: true })
-  fs.renameSync(path.join(cwd, 'secrets'), path.join(cwd, 'config'))
+  fs.renameSync(path.join(cwd, 'config'), path.join(cwd, 'settings'))
   fs.writeFileSync(
     path.join(cwd, 'package.json'),
-    JSON.stringify({ onesecret: { dir: 'config' } })
+    JSON.stringify({ onesecret: { dir: 'settings' } })
   )
   t.deepEqual(onesecret.names({ cwd }), Object.keys(DEFAULT_SECRETS))
 })
@@ -170,9 +171,10 @@ test.serial(
         ...PRODUCTION_SECRETS,
         API_TOKEN: 'from-env',
         S3_KEY: '',
-        PORT: '3000'
+        PORT: 3000
       })
     })
+    t.is(processEnv.PORT, '3000')
     t.is(processEnv.S3_KEY, '')
     t.is(processEnv.SOPS_AGE_KEY, undefined)
   }
@@ -218,7 +220,7 @@ test.serial(
     const store = require('../src/store')
     const recipient = require('../src/age').recipientOf(FIXTURE_KEY)
     store.writeDocument(
-      path.join(cwd, 'secrets', 'default.enc.yml'),
+      path.join(cwd, 'config', 'default.enc.yml'),
       sops.encrypt({ BLANK: '' }, { recipients: [recipient] })
     )
     withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
@@ -250,11 +252,9 @@ test.serial('config writes to process.env by default', t => {
 
 test.serial('ONESECRET_SKIP=1 turns config into a no-op', t => {
   const cwd = project({ fixture: 'app' })
-  const processEnv = {}
-  withEnv({ ONESECRET_SKIP: '1' }, () => {
-    t.deepEqual(onesecret.config({ cwd, processEnv }), {})
-  })
-  t.deepEqual(processEnv, {})
+  const processEnv = { ONESECRET_SKIP: '1' }
+  t.deepEqual(onesecret.config({ cwd, processEnv }), {})
+  t.deepEqual(processEnv, { ONESECRET_SKIP: '1' })
 })
 
 test('toDotenv and toEnv turn scalars into strings and refuse what env cannot hold', t => {
@@ -289,19 +289,22 @@ test('withoutAgeKey drops every age key variable', t => {
   )
 })
 
-test('without encrypted files, load returns nothing but config fails', t => {
+test('without config files, load returns nothing but config fails', t => {
   const cwd = temporaryDir('no-files')
   t.deepEqual(onesecret.load({ cwd }), {})
   const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
   t.is(error.code, 'EMISSING')
-  t.regex(error.message, /no encrypted files found in .*secrets/)
+  t.regex(
+    error.message,
+    /no config files for "default" or "development" found in .*config/
+  )
 })
 
 test('a corrupt encrypted file names itself', t => {
   const cwd = temporaryDir('corrupt')
-  fs.mkdirSync(path.join(cwd, 'secrets'))
+  fs.mkdirSync(path.join(cwd, 'config'))
   fs.writeFileSync(
-    path.join(cwd, 'secrets', 'default.enc.yml'),
+    path.join(cwd, 'config', 'default.enc.yml'),
     'A: [unclosed\n'
   )
   const error = t.throws(() => onesecret.names({ cwd }))
@@ -364,7 +367,7 @@ test.serial(
     const store = require('../src/store')
     const recipient = require('../src/age').recipientOf(FIXTURE_KEY)
     store.writeDocument(
-      path.join(cwd, 'secrets', 'default.enc.yml'),
+      path.join(cwd, 'config', 'default.enc.yml'),
       sops.encrypt(
         { TOKEN: 'x', 'BAD-NAME': 'y', nested: { a: 1 } },
         { recipients: [recipient] }
@@ -448,7 +451,7 @@ test.serial(
     const sops = require('../src/sops')
     const store = require('../src/store')
     store.writeDocument(
-      path.join(cwd, 'secrets', 'default.enc.yml'),
+      path.join(cwd, 'config', 'default.enc.yml'),
       sops.encrypt(
         { constructor: 'c1', valueOf: 'v1' },
         { recipients: [require('../src/age').recipientOf(FIXTURE_KEY)] }
@@ -515,4 +518,635 @@ test('the dotenv package port agrees with the real package', t => {
   ]) {
     t.deepEqual(parseDotenvPackage(body), { ...dotenv.parse(body) }, body)
   }
+})
+
+const writePlain = (cwd, name, text) =>
+  fs.writeFileSync(path.join(cwd, 'config', name), text)
+
+const layeredProject = () => {
+  const cwd = project({ fixture: 'app' })
+  writePlain(
+    cwd,
+    'default.yml',
+    'LOG_LEVEL: debug\nTIMEOUT: 60000\nAPI_TOKEN: plain-default\nPORT: 1\nhosts: [a, b]\ndatabase:\n  pool: 5\n  ssl: false\n'
+  )
+  writePlain(
+    cwd,
+    'production.yml',
+    'LOG_LEVEL: info\nS3_KEY: plain-production\nDATABASE_URL: postgres://plain\nhosts: [c]\ndatabase:\n  ssl: true\n'
+  )
+  return cwd
+}
+
+const configIn = (cwd, call, env = {}) => {
+  const { status, stdout, stderr } = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      `console.log(JSON.stringify(require(${JSON.stringify(
+        path.join(__dirname, '..', 'src')
+      )}).${call}))`
+    ],
+    {
+      cwd,
+      encoding: 'utf8',
+      env: { ...process.env, SOPS_AGE_KEY: FIXTURE_KEY, ...env }
+    }
+  )
+  if (status !== 0) throw new Error(stderr)
+  return JSON.parse(stdout)
+}
+
+test('config takes the env as its only argument, NODE_ENV by default', t => {
+  const cwd = layeredProject()
+  const production = configIn(cwd, "config('production')")
+  t.is(production.DATABASE_URL, 'postgres://fixture-production')
+  t.is(production.LOG_LEVEL, 'info')
+  t.deepEqual(configIn(cwd, 'config()', { NODE_ENV: 'production' }), production)
+  t.deepEqual(configIn(cwd, "config({ env: 'production' })"), production)
+  t.is(configIn(cwd, 'config()').LOG_LEVEL, 'debug')
+})
+
+test.serial(
+  'plain and encrypted layers merge as default.yml, default.enc.yml, env.yml, env.enc.yml',
+  t => {
+    const cwd = layeredProject()
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      const processEnv = { LOG_LEVEL: 'from-env' }
+      const values = onesecret.config({ cwd, env: 'production', processEnv })
+      t.deepEqual(values, {
+        LOG_LEVEL: 'from-env',
+        TIMEOUT: 60000,
+        API_TOKEN: 'Bearer production-token',
+        PORT: 3000,
+        hosts: ['c'],
+        database: { pool: 5, ssl: true },
+        S3_KEY: 'plain-production',
+        PUBLIC_unencrypted: 'visible',
+        DATABASE_URL: 'postgres://fixture-production'
+      })
+      t.is(processEnv.TIMEOUT, '60000')
+      t.is(processEnv.LOG_LEVEL, 'from-env')
+      t.false(Object.hasOwn(processEnv, 'database'))
+      t.deepEqual(onesecret.load({ cwd, env: 'production' }), {
+        ...values,
+        LOG_LEVEL: 'info'
+      })
+      t.deepEqual(onesecret.names({ cwd, env: 'production' }), [
+        'API_TOKEN',
+        'PORT',
+        'PUBLIC_unencrypted',
+        'DATABASE_URL'
+      ])
+    })
+  }
+)
+
+test.serial('plain values never need the key', t => {
+  const cwd = layeredProject()
+  const processEnv = {
+    API_TOKEN: 'x',
+    PORT: '3000',
+    PUBLIC_unencrypted: 'visible',
+    DATABASE_URL: 'postgres://injected'
+  }
+  const values = onesecret.config({ cwd, env: 'production', processEnv })
+  t.is(values.LOG_LEVEL, 'info')
+  t.is(processEnv.LOG_LEVEL, 'info')
+  t.is(values.S3_KEY, 'plain-production')
+  t.is(values.PORT, 3000)
+  t.is(values.DATABASE_URL, 'postgres://injected')
+  t.deepEqual(values.database, { pool: 5, ssl: true })
+})
+
+test.serial('ONESECRET_SKIP still loads the plain layers', t => {
+  const cwd = layeredProject()
+  withEnv({}, () => {
+    const processEnv = { ONESECRET_SKIP: '1' }
+    const values = onesecret.config({ cwd, env: 'production', processEnv })
+    t.is(values.LOG_LEVEL, 'info')
+    t.is(processEnv.TIMEOUT, '60000')
+    for (const name of ['DATABASE_URL', 'API_TOKEN', 'PORT']) {
+      t.false(Object.hasOwn(values, name), name)
+      t.false(Object.hasOwn(processEnv, name), name)
+    }
+    t.is(values.S3_KEY, 'plain-production')
+  })
+  withEnv({ ONESECRET_SKIP: '1' }, () => {
+    t.deepEqual(onesecret.config({ cwd: temporaryDir('empty') }), {})
+  })
+  t.deepEqual(
+    onesecret.config({
+      cwd: temporaryDir('empty'),
+      processEnv: { ONESECRET_SKIP: '1' }
+    }),
+    {}
+  )
+})
+
+test('a plain layer alone is enough, in YAML or JSON', t => {
+  const cwd = temporaryDir('plain-only')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.json', '{"PORT": 3000, "FLAG": true}')
+  writePlain(cwd, 'test.yaml', 'FLAG: false\n')
+  const processEnv = {}
+  t.deepEqual(onesecret.config({ cwd, env: 'test', processEnv }), {
+    PORT: 3000,
+    FLAG: false
+  })
+  t.deepEqual(processEnv, { PORT: '3000', FLAG: 'false' })
+  t.deepEqual(onesecret.names({ cwd, env: 'test' }), [])
+})
+
+test('a plain layer cannot pollute prototypes and must be a mapping', t => {
+  const cwd = temporaryDir('plain-proto')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(
+    cwd,
+    'default.json',
+    '{"__proto__": {"polluted": true}, "nested": {"__proto__": {"polluted": true}}}'
+  )
+  const processEnv = {}
+  const values = onesecret.config({ cwd, processEnv })
+  t.is({}.polluted, undefined)
+  t.is(values.polluted, undefined)
+  t.false(Object.hasOwn(values, '__proto__'))
+  t.false(Object.hasOwn(values.nested, '__proto__'))
+  t.false(Object.hasOwn(processEnv, '__proto__'))
+  writePlain(cwd, 'default.json', '[1, 2]')
+  const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(error.code, 'EFORMAT')
+  t.regex(error.message, /default\.json must be a mapping/)
+  writePlain(cwd, 'default.json', '{')
+  t.is(t.throws(() => onesecret.load({ cwd })).code, 'EFORMAT')
+})
+
+test('config returns the same types on every call', t => {
+  const cwd = temporaryDir('stable-types')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'FLAG: false\nTIMEOUT: 60000\nEMPTY: null\n')
+  const processEnv = {}
+  const first = onesecret.config({ cwd, processEnv })
+  t.deepEqual(onesecret.config({ cwd, processEnv }), first)
+  t.deepEqual(first, { FLAG: false, TIMEOUT: 60000, EMPTY: null })
+  processEnv.TIMEOUT = '1000'
+  t.is(onesecret.config({ cwd, processEnv }).TIMEOUT, '1000')
+})
+
+test('empty and comment-only plain files are empty layers', t => {
+  const cwd = temporaryDir('empty-plain')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'A: 1\n')
+  for (const text of ['', '# nothing yet\n', '~\n']) {
+    writePlain(cwd, 'production.yml', text)
+    t.deepEqual(onesecret.config({ cwd, env: 'production', processEnv: {} }), {
+      A: 1
+    })
+  }
+  writePlain(cwd, 'production.yml', 'A: 1\n---\nB: 2\n')
+  t.regex(
+    t.throws(() => onesecret.load({ cwd, env: 'production' })).message,
+    /single YAML document/
+  )
+})
+
+const encryptedProject = (layers, plain = {}) => {
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const recipient = age.recipientOf(FIXTURE_KEY)
+  const cwd = temporaryDir('encrypted')
+  for (const [layer, tree] of Object.entries(layers)) {
+    store.writeDocument(
+      path.join(cwd, 'config', `${layer}.enc.yml`),
+      sops.encrypt(tree, { recipients: [recipient] })
+    )
+  }
+  for (const [name, text] of Object.entries(plain)) writePlain(cwd, name, text)
+  return cwd
+}
+
+test('a plain mapping on top turns a secret into plain config', t => {
+  const cwd = encryptedProject(
+    { default: { API: 's' } },
+    { 'production.yml': 'API:\n  a: 1\n' }
+  )
+  t.deepEqual(onesecret.names({ cwd, env: 'production' }), [])
+  t.deepEqual(onesecret.config({ cwd, env: 'production', processEnv: {} }), {
+    API: { a: 1 }
+  })
+})
+
+test('a nested secret that is missing is refused, and skip leaves it unset', t => {
+  const cwd = encryptedProject(
+    { default: { db: { pass: 'p' } } },
+    { 'default.yml': 'db:\n  host: h\nPORT: 1\n' }
+  )
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+    t.is(error.code, 'EFORMAT')
+    t.regex(error.message, /"db" in .*default\.enc\.yml has type mapping/)
+    t.notRegex(error.message, /pass|"p"/)
+    t.deepEqual(onesecret.load({ cwd }).db, { host: 'h', pass: 'p' })
+  })
+  const skipping = { ONESECRET_SKIP: '1' }
+  t.deepEqual(onesecret.config({ cwd, processEnv: skipping }), { PORT: 1 })
+  t.deepEqual(skipping, { ONESECRET_SKIP: '1', PORT: '1' })
+})
+
+test('a secret from the environment comes back with the type in its file', t => {
+  const cwd = encryptedProject({
+    default: {
+      PORT_S: 123,
+      RATIO: 1.5,
+      ON: true,
+      BIG: 9007199254740993n,
+      NAME: '123'
+    }
+  })
+  const processEnv = {
+    PORT_S: '123',
+    RATIO: '1.5',
+    ON: 'true',
+    BIG: '9007199254740993',
+    NAME: '123'
+  }
+  t.deepEqual(onesecret.config({ cwd, processEnv }), {
+    PORT_S: 123,
+    RATIO: 1.5,
+    ON: true,
+    BIG: 9007199254740993n,
+    NAME: '123'
+  })
+  const odd = { PORT_S: '0x10', RATIO: '1e3', ON: 'yes', BIG: '1', NAME: 'x' }
+  t.deepEqual(onesecret.config({ cwd, processEnv: odd }), {
+    PORT_S: '0x10',
+    RATIO: '1e3',
+    ON: 'yes',
+    BIG: 1,
+    NAME: 'x'
+  })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    const decrypting = {}
+    const first = onesecret.config({ cwd, processEnv: decrypting })
+    t.deepEqual(onesecret.config({ cwd, processEnv: decrypting }), first)
+  })
+})
+
+test('a sops file named like a plain file is refused, and so are two files for one layer', t => {
+  const cwd = encryptedProject({ default: { API: 's' } })
+  fs.renameSync(
+    path.join(cwd, 'config', 'default.enc.yml'),
+    path.join(cwd, 'config', 'default.yml')
+  )
+  const encrypted = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(encrypted.code, 'EFORMAT')
+  t.regex(
+    encrypted.message,
+    /default\.yml is encrypted with sops, rename it to default\.enc\.yml/
+  )
+  const both = temporaryDir('both')
+  fs.mkdirSync(path.join(both, 'config'))
+  writePlain(both, 'default.yml', 'A: 1\n')
+  writePlain(both, 'default.json', '{"A": 2}')
+  const twice = t.throws(() => onesecret.config({ cwd: both, processEnv: {} }))
+  t.is(twice.code, 'EFORMAT')
+  t.regex(
+    twice.message,
+    /default\.yml and default\.json both hold the default layer/
+  )
+})
+
+test('the env defaults to development, and an explicit env beats NODE_ENV', t => {
+  const cwd = temporaryDir('envs')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'WHO: default\n')
+  writePlain(cwd, 'development.yml', 'WHO: development\n')
+  writePlain(cwd, 'production.yml', 'WHO: production\n')
+  withEnv({ NODE_ENV: undefined }, () => {
+    t.is(onesecret.config({ cwd, processEnv: {} }).WHO, 'development')
+  })
+  withEnv({ NODE_ENV: 'development' }, () => {
+    t.is(
+      onesecret.config({ cwd, env: 'production', processEnv: {} }).WHO,
+      'production'
+    )
+    t.is(
+      onesecret.config({ cwd, processEnv: { NODE_ENV: 'production' } }).WHO,
+      'production'
+    )
+  })
+})
+
+test('null becomes an empty variable and only ONESECRET_SKIP=1 skips', t => {
+  const cwd = encryptedProject(
+    { default: { TOKEN: 'secret' } },
+    { 'default.yml': 'EMPTY: null\n' }
+  )
+  const processEnv = { ONESECRET_SKIP: 'true' }
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    t.is(onesecret.config({ cwd, processEnv }).TOKEN, 'secret')
+  })
+  t.is(processEnv.EMPTY, '')
+  t.is(
+    t.throws(() =>
+      onesecret.config({ cwd, processEnv: { ONESECRET_SKIP: '0' } })
+    ).code,
+    'EMISSING'
+  )
+})
+
+test('a damaged file is reported as such, not as a missing key', t => {
+  const cwd = encryptedProject({ default: { TOKEN: 'secret' } })
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  fs.writeFileSync(
+    file,
+    fs
+      .readFileSync(file, 'utf8')
+      .replace(
+        /mac: ENC\[AES256_GCM,data:(.)/,
+        (_, first) => `mac: ENC[AES256_GCM,data:${first === 'A' ? 'B' : 'A'}`
+      )
+  )
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+    t.not(error.code, 'EMISSING')
+  })
+})
+
+test.serial(
+  'the public config never runs keyCommand in production, whatever the options say',
+  t => {
+    const { command, calls } = keyCommandPrinting(FIXTURE_KEY)
+    const cwd = encryptedProject({ default: { TOKEN: 'secret' } })
+    const error = t.throws(() =>
+      onesecret.config({
+        cwd,
+        env: 'production',
+        keyCommand: command,
+        allowKeyCommand: true,
+        processEnv: {}
+      })
+    )
+    t.is(error.code, 'EMISSING')
+    t.is(calls(), 0)
+  }
+)
+
+test('a plain mapping merged into an encrypted one keeps the name a secret, whatever else env has', t => {
+  const cwd = encryptedProject(
+    { default: { DB: { pass: 's3cret' }, TOKEN: 't' } },
+    { 'production.yml': 'DB:\n  host: h\n' }
+  )
+  t.deepEqual(onesecret.names({ cwd, env: 'production' }), ['DB', 'TOKEN'])
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    for (const processEnv of [{}, { TOKEN: 't' }]) {
+      const error = t.throws(() =>
+        onesecret.config({ cwd, env: 'production', processEnv })
+      )
+      t.is(error.code, 'EFORMAT')
+    }
+    t.deepEqual(onesecret.load({ cwd, env: 'production' }).DB, {
+      pass: 's3cret',
+      host: 'h'
+    })
+  })
+  t.false(
+    Object.hasOwn(
+      onesecret.config({
+        cwd,
+        env: 'production',
+        processEnv: { ONESECRET_SKIP: '1' }
+      }),
+      'DB'
+    )
+  )
+})
+
+test('a secret from env keeps its sops type whether or not another secret is decrypted', t => {
+  const cwd = encryptedProject({ default: { PORT: 3000, ON: false, T: 't' } })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    for (const extra of [{}, { T: 't' }]) {
+      const values = onesecret.config({
+        cwd,
+        processEnv: { PORT: '4000', ON: 'false', ...extra }
+      })
+      t.is(values.PORT, 4000)
+      t.is(values.ON, false)
+    }
+  })
+})
+
+test('the returned object is writable', t => {
+  const cwd = temporaryDir('writable')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'A: 1\n')
+  const values = onesecret.config({ cwd, processEnv: {} })
+  values.A = 2
+  t.is(values.A, 2)
+})
+
+test('plain parse errors name the place without echoing the content', t => {
+  const cwd = temporaryDir('parse-errors')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'A: 1\nPASSWORD: [hunter2\n')
+  const yamlError = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(yamlError.code, 'EFORMAT')
+  t.regex(yamlError.message, /default\.yml: .* at line \d+, column \d+$/)
+  t.notRegex(yamlError.message, /hunter2/)
+  fs.rmSync(path.join(cwd, 'config', 'default.yml'))
+  writePlain(cwd, 'default.json', '{"PASSWORD": hunter2}')
+  const jsonError = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.regex(jsonError.message, /default\.json: not valid JSON$/)
+  for (const blank of ['', '  \n']) {
+    writePlain(cwd, 'default.json', blank)
+    t.deepEqual(onesecret.config({ cwd, processEnv: {} }), {})
+  }
+})
+
+test('an env name cannot leave the config directory', t => {
+  const cwd = temporaryDir('env-names')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'A: 1\n')
+  for (const env of [
+    '../etc/evil',
+    'a/b',
+    'a\\b',
+    '..',
+    '.hidden',
+    'Staging'
+  ]) {
+    const error = t.throws(() => onesecret.config({ cwd, env, processEnv: {} }))
+    t.is(error.code, 'EVALUE', env)
+  }
+  t.deepEqual(onesecret.config({ cwd, env: 'staging.eu-1', processEnv: {} }), {
+    A: 1
+  })
+})
+
+test('a plain value is the same whether or not anything is decrypted', t => {
+  const cwd = encryptedProject(
+    { default: { X: 'secret', S: 'other' } },
+    { 'default.yml': 'X:\n  a: 1\n', 'production.yml': 'X:\n  b: 2\n' }
+  )
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    for (const processEnv of [{}, { S: 'x' }]) {
+      t.deepEqual(onesecret.config({ cwd, env: 'production', processEnv }).X, {
+        b: 2
+      })
+    }
+    t.deepEqual(onesecret.load({ cwd, env: 'production' }).X, { b: 2 })
+  })
+  t.deepEqual(
+    onesecret.config({
+      cwd,
+      env: 'production',
+      processEnv: { ONESECRET_SKIP: '1' }
+    }).X,
+    { b: 2 }
+  )
+})
+
+test('a plain mapping replaces an encrypted list, so the name is plain', t => {
+  const cwd = encryptedProject(
+    { default: { L: ['x', 'y'], S: 's' } },
+    { 'production.yml': 'L:\n  b: 2\n' }
+  )
+  t.deepEqual(onesecret.names({ cwd, env: 'production' }), ['S'])
+  t.deepEqual(
+    onesecret.config({ cwd, env: 'production', processEnv: { S: 's' } }).L,
+    { b: 2 }
+  )
+})
+
+test('an encrypted file that is not a sops file is named', t => {
+  const cwd = temporaryDir('not-sops')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.enc.yml', 'PASSWORD: hunter2-secret\n')
+  const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(error.code, 'EFORMAT')
+  t.regex(error.message, /default\.enc\.yml: file is not encrypted with sops/)
+  t.notRegex(error.message, /hunter2/)
+  writePlain(cwd, 'default.enc.yml', 'PASSWORD: hunter2-secret\n  bad: x\n')
+  const parse = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.regex(parse.message, /default\.enc\.yml: .* at line 2, column \d+$/)
+  t.notRegex(parse.message, /hunter2/)
+})
+
+test('plain parse errors do not echo aliases or tags', t => {
+  const cwd = temporaryDir('alias')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'PASSWORD: *hunter2secret\n')
+  const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(error.code, 'EFORMAT')
+  t.notRegex(error.message, /hunter2/)
+})
+
+test('env names that look like files or are not lowercase are refused', t => {
+  const cwd = encryptedProject({ default: { T: 's' } })
+  for (const env of ['default.enc', 'prod.yml', 'x.json', 'a.enc.b']) {
+    t.is(
+      t.throws(() => onesecret.config({ cwd, env, processEnv: {} })).code,
+      'EVALUE',
+      env
+    )
+  }
+  const { command, calls } = keyCommandPrinting(FIXTURE_KEY)
+  for (const env of ['Production', 'DEFAULT']) {
+    const error = t.throws(() =>
+      onesecret.config({ cwd, env, keyCommand: command, processEnv: {} })
+    )
+    t.is(error.code, 'EVALUE')
+    t.regex(error.message, /lowercase/)
+  }
+  t.is(calls(), 0)
+})
+
+test('a blank secret keeps its null type and a bytes secret is refused when missing', t => {
+  const cwd = encryptedProject({ default: { EMPTY: null, T: 's' } })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    const processEnv = {}
+    const first = onesecret.config({ cwd, processEnv })
+    t.is(first.EMPTY, null)
+    t.is(onesecret.config({ cwd, processEnv }).EMPTY, null)
+  })
+  const bytes = encryptedProject({ default: { B: Buffer.from('x') } })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    const error = t.throws(() =>
+      onesecret.config({ cwd: bytes, processEnv: {} })
+    )
+    t.is(error.code, 'EFORMAT')
+    t.regex(error.message, /"B" in .* has type bytes/)
+  })
+})
+
+test('a YAML tag in a plain file is reported without its text', t => {
+  const cwd = temporaryDir('plain-tag')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  for (const text of ['DB_PASS: !Qw3rty2024\n', 'DB_PASS: !Qw3rty!2024\n']) {
+    writePlain(cwd, 'production.yml', text)
+    const error = t.throws(() =>
+      onesecret.config({ cwd, env: 'production', processEnv: {} })
+    )
+    t.is(error.code, 'EFORMAT')
+    t.notRegex(error.message, /Qw3rty/)
+    t.regex(error.message, /at line 1, column \d+$/)
+  }
+})
+
+test('no YAML error ever prints the text it failed on', t => {
+  const leaks = [
+    'DB_PASS: !Pa%ss-hunter2\n',
+    'DB_PASS: !<hunter2 secret>\n',
+    'DB_PASS: *hunter2\n',
+    'DB_PASS: [hunter2\n'
+  ]
+  for (const text of leaks) {
+    const plain = temporaryDir('leak-plain')
+    fs.mkdirSync(path.join(plain, 'config'))
+    writePlain(plain, 'default.yml', text)
+    const encrypted = temporaryDir('leak-enc')
+    fs.mkdirSync(path.join(encrypted, 'config'))
+    writePlain(encrypted, 'default.enc.yml', text)
+    for (const cwd of [plain, encrypted]) {
+      const error = t.throws(
+        () => onesecret.config({ cwd, processEnv: {} }),
+        undefined,
+        text
+      )
+      t.is(error.code, 'EFORMAT', text)
+      t.notRegex(error.message, /hunter2|Pa%ss/, text)
+    }
+  }
+})
+
+test('tags are refused on keys, on collections, and when not a standard scalar tag', t => {
+  const write = require('../src/write')
+  for (const text of [
+    '!foo B: x\n',
+    '--- !foo\nA: 1\n',
+    'A: !!foo bar\n',
+    'A: !!binary aGVsbG8=\n',
+    'A: !!map {}\n'
+  ]) {
+    const error = t.throws(() => write.fromEditableYaml(text), undefined, text)
+    t.is(error.code, 'EVALUE', text)
+  }
+  t.deepEqual(write.fromEditableYaml('A: !!str 1\nB: !!int "2"\n'), {
+    A: '1',
+    B: 2
+  })
+})
+
+test('a missing secret whose name can never be a variable is refused up front', t => {
+  const cwd = encryptedProject({ default: { 'api-key': 's', T: 't' } })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    const error = t.throws(() =>
+      onesecret.config({ cwd, processEnv: { T: 't' } })
+    )
+    t.is(error.code, 'EFORMAT')
+    t.regex(
+      error.message,
+      /"api-key" .* cannot be an environment variable name/
+    )
+  })
 })

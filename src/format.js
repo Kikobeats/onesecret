@@ -6,8 +6,10 @@ const { OnesecretError } = require('./error')
 
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 
+const isEnvName = name => ENV_NAME.test(name) && name !== '__proto__'
+
 const assertEnvName = name => {
-  if (!ENV_NAME.test(name) || name === '__proto__') {
+  if (!isEnvName(name)) {
     throw new OnesecretError(
       `"${name}" is not a valid environment variable name`,
       'EVALUE'
@@ -51,6 +53,7 @@ const checksum = secrets => {
 module.exports = {
   assertEnvName,
   checksum,
+  isEnvName,
   isEnvScalar,
   toDotenv,
   toEnv,

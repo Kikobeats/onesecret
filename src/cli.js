@@ -8,7 +8,9 @@ const mri = require('mri')
 const secrets = require('./secrets')
 const write = require('./write')
 const deploy = require('./deploy')
-const { toDotenv, toEnvValue } = require('./format')
+const store = require('./store')
+const { isEnvScalar, toDotenv } = require('./format')
+const yaml = require('./yaml')
 const { withoutAgeKey } = require('./keys')
 const { OnesecretError } = require('./error')
 
@@ -35,8 +37,27 @@ const relative = file => path.relative(process.cwd(), file) || file
 
 const shellQuote = text => `'${text.replace(/'/g, "'\\''")}'`
 
+const WAIT_FLAGS = {
+  atom: '--wait',
+  code: '--wait',
+  'code-insiders': '--wait',
+  codium: '--wait',
+  cursor: '--wait',
+  mate: '-w',
+  subl: '--wait',
+  windsurf: '--wait',
+  zed: '--wait'
+}
+
+const waitingEditor = editor => {
+  const [command, ...args] = editor.trim().split(/\s+/)
+  const flag = WAIT_FLAGS[path.basename(command)]
+  if (!flag || args.includes(flag) || args.includes('-w')) return editor
+  return `${editor} ${flag}`
+}
+
 const openEditor = file => {
-  const editor = process.env.VISUAL || process.env.EDITOR || 'vi'
+  const editor = waitingEditor(process.env.VISUAL || process.env.EDITOR || 'vi')
   const { status, error } = spawnSync(`${editor} ${shellQuote(file)}`, {
     stdio: 'inherit',
     shell: true
@@ -47,16 +68,117 @@ const openEditor = file => {
       'EUSAGE'
     )
   }
-  return fs.readFileSync(file, 'utf8')
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
 }
 
 const EDIT_SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP']
 
-const edit = flags => {
-  const layer = writeLayerOf(flags)
-  const current = write.readLayer(writeOptions(flags), layer)
+const assertOnlyFileOfLayer = (file, kind) => {
+  const dir = path.dirname(file)
+  const layer = secrets.assertEnv(store.layerOfFile(file))
+  const existing =
+    kind === 'plain'
+      ? store.findPlainFile(dir, layer)
+      : store.findLayerFile(dir, layer)
+  if (existing && existing !== file) {
+    throw new OnesecretError(
+      `${relative(existing)} already holds the ${layer} layer, edit it instead`,
+      'EUSAGE'
+    )
+  }
+}
+
+const plainTarget = file => {
+  const original = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
+  return {
+    file,
+    original,
+    workspaceName: path.basename(file),
+    save: copy => {
+      try {
+        store.readPlain(copy)
+      } catch (error) {
+        throw new OnesecretError(
+          error.reason.split(copy).join(relative(file)),
+          'EVALUE'
+        )
+      }
+      store.writeText(file, fs.readFileSync(copy, 'utf8'))
+      return `${relative(file)} saved`
+    }
+  }
+}
+
+const encryptedTarget = current => {
+  write.encryptionFor(current.file, current.existing)
+  return {
+    file: current.file,
+    original: write.toEditableYaml(current.tree),
+    workspaceName: path
+      .basename(current.file)
+      .replace(/\.enc\.(ya?ml|json)$/, '.yml'),
+    save: copy =>
+      `${relative(
+        write.writeLayer(
+          current,
+          write.fromEditableYaml(fs.readFileSync(copy, 'utf8'))
+        )
+      )} encrypted`
+  }
+}
+
+const editTargetOf = (flags, args) => {
+  if (args.length > 1) usage('edit takes at most one file')
+  if (args.length === 0) {
+    return encryptedTarget(
+      write.readLayer(writeOptions(flags), writeLayerOf(flags))
+    )
+  }
+  if (flags.env) usage('edit takes a file or --env, not both')
+  const file = path.resolve(flags.cwd || process.cwd(), args[0])
+  const kind = store.fileKindOf(file)
+  if (!kind) usage(`edit needs a .yml, .yaml, or .json file, got "${args[0]}"`)
+  assertOnlyFileOfLayer(file, kind)
+  return kind === 'plain'
+    ? plainTarget(file)
+    : encryptedTarget(write.readFile(writeOptions(flags), file))
+}
+
+const saveErrorOf = error =>
+  error instanceof OnesecretError
+    ? error.message
+    : `onesecret: cannot save, ${error.code || error.message}`
+
+const editInWorkspace = (target, copy) => {
+  fs.writeFileSync(copy, target.original, { mode: 0o600 })
+  let failed = null
+  for (;;) {
+    const text = openEditor(copy)
+    if (text === target.original) return `${relative(target.file)} unchanged`
+    const retry = failed !== null && text === failed.text
+    if (retry && failed.invalid) {
+      throw new OnesecretError(
+        `edit aborted, ${relative(target.file)} is unchanged`,
+        'EVALUE'
+      )
+    }
+    try {
+      return target.save(copy)
+    } catch (error) {
+      if (retry) throw error
+      console.error(
+        `${saveErrorOf(error)}\nReopening the editor, save it unchanged to ${
+          error instanceof OnesecretError ? 'abort' : 'try again'
+        }.`
+      )
+      failed = { text, invalid: error instanceof OnesecretError }
+    }
+  }
+}
+
+const edit = (flags, args) => {
+  const target = editTargetOf(flags, args)
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'onesecret-'))
-  const file = path.join(workspace, `${layer}.yml`)
   const removeWorkspace = () =>
     fs.rmSync(workspace, { recursive: true, force: true })
   const onSignal = signal => {
@@ -65,30 +187,7 @@ const edit = flags => {
   }
   for (const signal of EDIT_SIGNALS) process.on(signal, onSignal)
   try {
-    const original = write.toEditableYaml(current.tree)
-    fs.writeFileSync(file, original, { mode: 0o600 })
-    let rejected = null
-    for (;;) {
-      const text = openEditor(file)
-      if (text === original) return `${relative(current.file)} unchanged`
-      if (text === rejected) {
-        throw new OnesecretError(
-          'edit aborted, the file still has the same error',
-          'EVALUE'
-        )
-      }
-      try {
-        return `${relative(
-          write.writeLayer(current, write.fromEditableYaml(text))
-        )} encrypted`
-      } catch (error) {
-        if (error.code !== 'EVALUE') throw error
-        console.error(
-          `${error.message}\nReopening the editor, save it unchanged to abort.`
-        )
-        rejected = text
-      }
-    }
+    return editInWorkspace(target, path.join(workspace, target.workspaceName))
   } finally {
     removeWorkspace()
     for (const signal of EDIT_SIGNALS) process.off(signal, onSignal)
@@ -98,13 +197,15 @@ const edit = flags => {
 const exec = (flags, command) => {
   if (command.length === 0) usage('exec needs a command after --')
   const env = withoutAgeKey(process.env)
-  secrets.config({
-    ...readOptions(flags),
-    processEnv: env,
-    allowKeyCommand: true
-  })
+  if (flags.env) env.NODE_ENV = flags.env
+  secrets.fill(
+    { ...readOptions(flags), processEnv: env },
+    { allowKeyCommand: true }
+  )
   const child = spawn(command[0], command.slice(1), { stdio: 'inherit', env })
-  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) { process.on(signal, () => child.kill(signal)) }
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(signal, () => child.kill(signal))
+  }
   return new Promise((resolve, reject) => {
     child.on('error', error =>
       reject(
@@ -130,11 +231,14 @@ const COMMANDS = {
     }
     return [
       `public key   ${result.recipient}`,
-      `private key  appended to ${result.keysFile}`,
+      `private key  ${result.identity}`,
       `sops config  ${relative(result.sopsConfigFile)}`,
       `secrets      ${relative(result.defaultFile)}`,
       '',
-      'Store the private key as SOPS_AGE_KEY in your CI, and share it with your team through a password manager.'
+      'The private key is shown only now and is not saved anywhere. Keep it in your',
+      'password manager and as SOPS_AGE_KEY in CI. To use it in this shell:',
+      '',
+      `  export SOPS_AGE_KEY=${result.identity}`
     ].join('\n')
   },
   set: (flags, args) => {
@@ -157,11 +261,18 @@ const COMMANDS = {
   ls: flags => secrets.names(readOptions(flags)).join('\n'),
   get: (flags, args) => {
     if (args.length !== 1) usage('get needs exactly one NAME')
-    const values = secrets.load(readOptions(flags))
-    if (!Object.hasOwn(values, args[0])) { throw new OnesecretError(`"${args[0]}" is not a secret`, 'EVALUE') }
-    return toEnvValue(args[0], values[args[0]])
+    const values = secrets.get(readOptions(flags), args[0])
+    if (!Object.hasOwn(values, args[0])) {
+      throw new OnesecretError(`"${args[0]}" is not set in any layer`, 'EVALUE')
+    }
+    const value = values[args[0]]
+    if (value === null) return ''
+    return isEnvScalar(value) ? String(value) : yaml.dump(value).trimEnd()
   },
-  dotenv: flags => toDotenv(secrets.load(readOptions(flags))).trimEnd(),
+  dotenv: flags =>
+    toDotenv(
+      secrets.loadSecrets(secrets.readLayers(readOptions(flags)))
+    ).trimEnd(),
   exec: (flags, args) => exec(flags, args),
   kubernetes: flags => {
     const { checksum, output } = deploy.kubernetes({

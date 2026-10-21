@@ -63,7 +63,9 @@ const pad = (number, width = 2) => String(number).padStart(width, '0')
 
 const timestampParts = text => {
   const date = DATE.exec(text)
-  if (date) { return { ymd: date.slice(1, 4), hms: [0, 0, 0], fraction: '', zone: 'Z' } }
+  if (date) {
+    return { ymd: date.slice(1, 4), hms: [0, 0, 0], fraction: '', zone: 'Z' }
+  }
   const match = DATE_TIME.exec(text)
   if (!match) return null
   const hasZone = match[4] !== undefined
@@ -133,10 +135,29 @@ const resolvePlain = text => {
   return resolveNumber(text) ?? text
 }
 
+const CORE_TAGS = ['str', 'int', 'float', 'bool', 'null', 'timestamp']
+
+const tagOf = (source, event) =>
+  event.tagStart >= 0 ? source.slice(event.tagStart, event.tagEnd) : null
+
+const isCoreTag = tag =>
+  CORE_TAGS.some(
+    name => tag === `!!${name}` || tag === `!<${TAG_PREFIX}${name}>`
+  )
+
+const assertTag = (tag, isValue) => {
+  if (tag && !(isValue && isCoreTag(tag))) {
+    throw new Error(
+      `only the tags ${CORE_TAGS.map(name => `!!${name}`).join(
+        ', '
+      )} are supported, on values`
+    )
+  }
+}
+
 const resolveScalar = (source, event) => {
   const text = yaml.getScalarValue(source, event)
-  const tag =
-    event.tagStart >= 0 ? source.slice(event.tagStart, event.tagEnd) : null
+  const tag = tagOf(source, event)
   if (tag === '!!str' || tag === `!<${TAG_PREFIX}str>`) return text
   if (tag || event.style === yaml.SCALAR_STYLE_PLAIN) return resolvePlain(text)
   return text
@@ -160,9 +181,13 @@ const parse = source => {
     }
   }
   for (const event of yaml.parseEvents(source)) {
-    if (event.anchorStart >= 0 || event.type === yaml.EVENT_ALIAS) { throw new Error('anchors and aliases are not supported') }
+    if (event.anchorStart >= 0 || event.type === yaml.EVENT_ALIAS) {
+      throw new Error('anchors and aliases are not supported')
+    }
     if (event.type === yaml.EVENT_DOCUMENT) {
-      if (++documents > 1) { throw new Error('a file must hold a single YAML document') }
+      if (++documents > 1) {
+        throw new Error('a file must hold a single YAML document')
+      }
     } else if (
       event.type === yaml.EVENT_MAPPING ||
       event.type === yaml.EVENT_SEQUENCE
@@ -175,6 +200,7 @@ const parse = source => {
       ) {
         throw new Error('mapping keys must be scalars')
       }
+      assertTag(tagOf(source, event), false)
       const node = event.type === yaml.EVENT_MAPPING ? orderedObject() : []
       attach(node)
       stack.push({ node })
@@ -184,6 +210,7 @@ const parse = source => {
       const parent = stack[stack.length - 1]
       const isKey =
         parent && !Array.isArray(parent.node) && parent.pendingKey === undefined
+      assertTag(tagOf(source, event), !isKey)
       attach(
         isKey
           ? yaml.getScalarValue(source, event)
@@ -253,9 +280,13 @@ const formatNumber = value => {
 
 const formatScalar = (value, indent) => {
   if (value === null || value === undefined) return 'null'
-  if (typeof value === 'boolean' || typeof value === 'bigint') { return String(value) }
+  if (typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value)
+  }
   if (typeof value === 'number') return formatNumber(value)
-  if (typeof value === 'string') { return isBlockSafe(value) ? formatBlock(value, indent) : formatString(value) }
+  if (typeof value === 'string') {
+    return isBlockSafe(value) ? formatBlock(value, indent) : formatString(value)
+  }
   throw new Error(`cannot write a value of type ${typeof value}`)
 }
 

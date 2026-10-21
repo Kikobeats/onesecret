@@ -9,6 +9,9 @@ const { temporaryDir } = require('./helpers')
 const ROOT = path.join(__dirname, '..')
 const EXAMPLE = path.join(ROOT, 'example')
 const EXAMPLE_README = fs.readFileSync(path.join(EXAMPLE, 'README.md'), 'utf8')
+const [, SOPS_AGE_KEY] = EXAMPLE_README.match(
+  /^\$ export SOPS_AGE_KEY=(AGE-SECRET-KEY-1\w+)$/m
+)
 
 const exampleCopy = () => {
   const cwd = temporaryDir('example')
@@ -33,12 +36,20 @@ const start = env => {
 const assertDocumented = (t, stdout) =>
   t.true(EXAMPLE_README.includes(stdout), `README is missing:\n${stdout}`)
 
-test('development decrypts the default layer through keyCommand', t => {
-  const { status, stdout, stderr } = start({})
+test('the example commits no key', t => {
+  t.false(fs.existsSync(path.join(EXAMPLE, 'age.key')))
+  const pkg = JSON.parse(
+    fs.readFileSync(path.join(EXAMPLE, 'package.json'), 'utf8')
+  )
+  t.false(Object.hasOwn(pkg, 'onesecret'))
+})
+
+test('development decrypts the default layer with the exported key', t => {
+  const { status, stdout, stderr } = start({ SOPS_AGE_KEY })
   t.is(status, 0, stderr)
   t.is(
     stdout,
-    'environment  development\ndatabase     localhost:5432\nstripe       sk_test_…\nsession      18 characters\n'
+    'environment  development\nport         3000\nlog level    debug\ntimeout      60s\ndatabase     localhost:5432\nstripe       sk_test_…\nsession      18 characters\n'
   )
   assertDocumented(t, stdout)
 })
@@ -53,12 +64,12 @@ test('production with every secret injected needs no key', t => {
   t.is(status, 0, stderr)
   t.is(
     stdout,
-    'environment  production\ndatabase     injected:5432\nstripe       sk_live_…\nsession      13 characters\n'
+    'environment  production\nport         3000\nlog level    info\ntimeout      30s\ndatabase     injected:5432\nstripe       sk_live_…\nsession      13 characters\n'
   )
   assertDocumented(t, stdout)
 })
 
-test('production never runs keyCommand and names the missing secrets', t => {
+test('without the key, a missing secret fails the boot and is named', t => {
   const { status, stderr } = start({ NODE_ENV: 'production' })
   t.is(status, 1)
   t.regex(
@@ -70,12 +81,12 @@ test('production never runs keyCommand and names the missing secrets', t => {
 test('production with the key merges its layer over the default one', t => {
   const { status, stdout, stderr } = start({
     NODE_ENV: 'production',
-    SOPS_AGE_KEY_FILE: 'age.key'
+    SOPS_AGE_KEY
   })
   t.is(status, 0, stderr)
   t.is(
     stdout,
-    'environment  production\ndatabase     db.internal:5432\nstripe       sk_live_…\nsession      18 characters\n'
+    'environment  production\nport         3000\nlog level    info\ntimeout      30s\ndatabase     db.internal:5432\nstripe       sk_live_…\nsession      18 characters\n'
   )
   assertDocumented(t, stdout)
 })

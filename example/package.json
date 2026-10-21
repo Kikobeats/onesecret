@@ -6,9 +6,6 @@
   "dependencies": {
     "onesecret": "file:.."
   },
-  "onesecret": {
-    "keyCommand": "cat age.key"
-  },
   "scripts": {
     "start": "node index.js"
   }
