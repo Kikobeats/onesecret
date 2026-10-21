@@ -26,5 +26,5 @@ jobs:
           sudo install -m 0755 sops /usr/local/bin/sops
           sudo apt-get update && sudo apt-get install -y age
           sops --version && age --version
-      - run: pnpm install
+      - run: pnpm install --ignore-scripts
       - run: pnpm test
