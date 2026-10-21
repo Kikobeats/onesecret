@@ -15,7 +15,9 @@ const AGE_KEY_VARIABLES = [
 ]
 
 const sopsKeysFile = () => {
-  if (process.env.XDG_CONFIG_HOME) { return path.join(process.env.XDG_CONFIG_HOME, KEYS_FILE) }
+  if (process.env.XDG_CONFIG_HOME) {
+    return path.join(process.env.XDG_CONFIG_HOME, KEYS_FILE)
+  }
   if (process.platform === 'darwin') {
     return path.join(os.homedir(), 'Library', 'Application Support', KEYS_FILE)
   }
@@ -48,21 +50,40 @@ const parseSource = (label, text) => {
   }
 }
 
+const localSources = () => [
+  ...(process.env.SOPS_AGE_KEY
+    ? [['SOPS_AGE_KEY', () => process.env.SOPS_AGE_KEY]]
+    : []),
+  ...(process.env.SOPS_AGE_KEY_FILE
+    ? [
+        [
+          process.env.SOPS_AGE_KEY_FILE,
+          () => readKeyFile(process.env.SOPS_AGE_KEY_FILE)
+        ]
+      ]
+    : []),
+  ...defaultKeyFiles()
+    .filter(file => fs.existsSync(file))
+    .map(file => [file, () => readKeyFile(file)])
+]
+
 const localIdentities = () => {
   const identities = []
-  if (process.env.SOPS_AGE_KEY) { identities.push(...parseSource('SOPS_AGE_KEY', process.env.SOPS_AGE_KEY)) }
-  if (process.env.SOPS_AGE_KEY_FILE) {
-    identities.push(
-      ...parseSource(
-        process.env.SOPS_AGE_KEY_FILE,
-        readKeyFile(process.env.SOPS_AGE_KEY_FILE)
-      )
-    )
+  const invalid = []
+  for (const [label, read] of localSources()) {
+    try {
+      identities.push(...parseSource(label, read()))
+    } catch (error) {
+      invalid.push(error)
+    }
   }
-  for (const file of defaultKeyFiles()) {
-    if (fs.existsSync(file)) { identities.push(...parseSource(file, readKeyFile(file))) }
-  }
-  return identities
+  return { identities, invalid }
+}
+
+const withSkippedSources = (error, invalid) => {
+  if (error.code !== 'EKEY' || invalid.length === 0) return error
+  const skipped = invalid.map(({ message }) => message).join('; ')
+  return new OnesecretError(`${error.message} (skipped: ${skipped})`, 'EKEY')
 }
 
 const commandCache = new Map()
@@ -109,20 +130,23 @@ const readKeyCommand = command => {
 const keyCommandOf = keyCommand => process.env.SOPS_AGE_KEY_CMD || keyCommand
 
 const withIdentities = (keyCommand, use, { allowKeyCommand = true } = {}) => {
-  const local = localIdentities()
+  const { identities, invalid } = localIdentities()
   const command = allowKeyCommand ? keyCommandOf(keyCommand) : undefined
-  if (local.length === 0 && !command) {
+  if (identities.length === 0 && !command) {
+    if (invalid.length > 0) throw invalid[0]
     const sources = `set SOPS_AGE_KEY or SOPS_AGE_KEY_FILE, or add it to ${sopsKeysFile()}`
     const hint = allowKeyCommand
       ? `${sources}, or configure a keyCommand`
       : `${sources} (keyCommand is not run here)`
     throw new OnesecretError(`no age key found: ${hint}`, 'ENOKEY')
   }
-  if (local.length > 0) {
+  if (identities.length > 0) {
     try {
-      return use(local)
+      return use(identities)
     } catch (error) {
-      if (error.code !== 'EKEY' || !command) throw error
+      if (error.code !== 'EKEY' || !command) {
+        throw withSkippedSources(error, invalid)
+      }
     }
   }
   return use(runKeyCommand(command))
@@ -134,7 +158,6 @@ const withoutAgeKey = env =>
   )
 
 module.exports = {
-  localIdentities,
   sopsKeysFile,
   withIdentities,
   withoutAgeKey

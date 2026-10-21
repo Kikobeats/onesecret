@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { default: test } = require('ava')
 const onesecret = require('../src')
+const age = require('../src/age')
 const {
   FIXTURE_KEY,
   fakeBinary,
@@ -398,6 +399,35 @@ test.serial('a broken key names its source and carries a code', t => {
     t.regex(error.message, /SOPS_AGE_KEY holds an invalid age key/)
   })
 })
+
+test.serial(
+  'a broken keys file does not block a valid key from another source',
+  t => {
+    const cwd = project({ fixture: 'app' })
+    const xdg = temporaryDir('xdg')
+    fs.mkdirSync(path.join(xdg, 'sops', 'age'), { recursive: true })
+    fs.writeFileSync(
+      path.join(xdg, 'sops', 'age', 'keys.txt'),
+      'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample user@host\n'
+    )
+    withEnv({ XDG_CONFIG_HOME: xdg, SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      t.is(onesecret.load({ cwd }).S3_KEY, 'AKIA-default')
+    })
+    withEnv({ XDG_CONFIG_HOME: xdg }, () => {
+      const error = t.throws(() => onesecret.load({ cwd }))
+      t.is(error.code, 'EKEY')
+      t.regex(error.message, /keys\.txt holds an invalid age key/)
+    })
+    withEnv(
+      { XDG_CONFIG_HOME: xdg, SOPS_AGE_KEY: age.generateIdentity() },
+      () => {
+        const error = t.throws(() => onesecret.load({ cwd }))
+        t.is(error.code, 'EKEY')
+        t.regex(error.message, /skipped: .*keys\.txt holds an invalid age key/)
+      }
+    )
+  }
+)
 
 test.serial(
   'the production error does not suggest a keyCommand it will not run',
