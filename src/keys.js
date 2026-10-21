@@ -82,8 +82,8 @@ const localIdentities = () => {
 
 const withSkippedSources = (error, invalid) => {
   if (error.code !== 'EKEY' || invalid.length === 0) return error
-  const skipped = invalid.map(({ message }) => message).join('; ')
-  return new OnesecretError(`${error.message} (skipped: ${skipped})`, 'EKEY')
+  const skipped = invalid.map(({ reason }) => reason).join('; ')
+  return new OnesecretError(`${error.reason} (skipped: ${skipped})`, 'EKEY')
 }
 
 const commandCache = new Map()
