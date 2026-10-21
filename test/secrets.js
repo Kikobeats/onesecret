@@ -424,6 +424,7 @@ test.serial(
         const error = t.throws(() => onesecret.load({ cwd }))
         t.is(error.code, 'EKEY')
         t.regex(error.message, /skipped: .*keys\.txt holds an invalid age key/)
+        t.is(error.message.match(/onesecret:/g).length, 1)
       }
     )
   }
