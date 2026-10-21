@@ -32,10 +32,10 @@ const namesIn = dir => {
 }
 
 const assertExactCase = (names, wanted, dir) => {
-  const lowered = new Map([...names].map(name => [name.toLowerCase(), name]))
-  for (const name of wanted) {
-    const actual = lowered.get(name.toLowerCase())
-    if (actual && actual !== name) {
+  const byLowercase = new Map(wanted.map(name => [name.toLowerCase(), name]))
+  for (const actual of names) {
+    const name = byLowercase.get(actual.toLowerCase())
+    if (name && actual !== name) {
       throw new OnesecretError(
         `${actual} in ${dir} differs from ${name} only in letter case, rename it to ${name}`,
         'EFORMAT'
