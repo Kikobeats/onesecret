@@ -2,7 +2,7 @@
 
 const { execFileSync } = require('node:child_process')
 const yaml = require('js-yaml')
-const { decryptLayers, readLayers } = require('./secrets')
+const { loadSecrets, readLayers } = require('./secrets')
 const { withoutAgeKey } = require('./keys')
 const { checksum, toEnv } = require('./format')
 const flyEncoding = require('./fly')
@@ -17,14 +17,15 @@ const loadForDeploy = (target, options) => {
       'EVALUE'
     )
   }
-  const { dir, documents, env, files, keyCommand } = readLayers(options)
-  if (!files[env]) {
+  const layered = readLayers(options)
+  const envLayer = layered.layers.find(({ name }) => name === layered.env)
+  if (!envLayer.plainFile && !envLayer.encryptedFile) {
     throw new OnesecretError(
-      `${target} found no "${env}" layer in ${dir}, pass --env default to deploy the default layer alone`,
+      `${target} found no "${layered.env}" layer in ${layered.dir}, pass --env default to deploy the default layer alone`,
       'EVALUE'
     )
   }
-  return decryptLayers(documents, keyCommand)
+  return loadSecrets(layered)
 }
 
 const run = (binary, args, input) => {
@@ -78,7 +79,9 @@ const kubernetes = ({
   args = [],
   ...options
 }) => {
-  if (!name) { throw new OnesecretError('kubernetes needs the Secret name', 'EVALUE') }
+  if (!name) {
+    throw new OnesecretError('kubernetes needs the Secret name', 'EVALUE')
+  }
   const secrets = loadForDeploy('kubernetes', options)
   const contextArgs = context ? ['--context', context] : []
   const output = run(

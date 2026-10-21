@@ -10,6 +10,9 @@ const { OnesecretError } = require('./error')
 
 const DEFAULT_LAYER = 'default'
 const EXTENSIONS = ['.enc.yml', '.enc.yaml', '.enc.json']
+const PLAIN_EXTENSIONS = ['.yml', '.yaml', '.json']
+const ENCRYPTED_FILE = /^(.+)\.enc\.(ya?ml|json)$/
+const PLAIN_FILE = /^(.+)\.(ya?ml|json)$/
 const SOPS_CONFIG = '.sops.yaml'
 
 const isJson = file => file.endsWith('.json')
@@ -20,28 +23,137 @@ const stringify = (file, document) =>
 const layersFor = env =>
   env && env !== DEFAULT_LAYER ? [DEFAULT_LAYER, env] : [DEFAULT_LAYER]
 
-const findLayerFile = (dir, layer) =>
-  EXTENSIONS.map(extension => path.join(dir, layer + extension)).find(file =>
-    fs.existsSync(file)
-  )
+const findFile = (dir, layer, extensions) => {
+  const found = extensions
+    .map(extension => path.join(dir, layer + extension))
+    .filter(file => fs.existsSync(file))
+  if (found.length > 1) {
+    throw new OnesecretError(
+      `${found
+        .map(file => path.basename(file))
+        .join(' and ')} both hold the ${layer} layer in ${dir}, keep one`,
+      'EFORMAT'
+    )
+  }
+  return found[0]
+}
+
+const findLayerFile = (dir, layer) => findFile(dir, layer, EXTENSIONS)
+
+const findPlainFile = (dir, layer) => findFile(dir, layer, PLAIN_EXTENSIONS)
+
+const layerOfFile = file => {
+  const name = path.basename(file)
+  return (ENCRYPTED_FILE.exec(name) || PLAIN_FILE.exec(name))[1]
+}
+
+const fileKindOf = file => {
+  const name = path.basename(file)
+  if (ENCRYPTED_FILE.test(name)) return 'encrypted'
+  if (PLAIN_FILE.test(name)) return 'plain'
+  return null
+}
 
 const layerFileOrNew = (dir, layer) =>
   findLayerFile(dir, layer) || path.join(dir, layer + EXTENSIONS[0])
+
+const parseErrorOf = error => {
+  if (error.mark) {
+    return `invalid YAML at line ${error.mark.line + 1}, column ${
+      error.mark.column + 1
+    }`
+  }
+  if (error instanceof SyntaxError) return 'not valid JSON'
+  return error.code || error.message
+}
 
 const readDocument = file => {
   try {
     return yaml.parse(fs.readFileSync(file, 'utf8'))
   } catch (error) {
-    throw new OnesecretError(`cannot read ${file}: ${error.message}`, 'EFORMAT')
+    throw new OnesecretError(
+      `cannot read ${file}: ${parseErrorOf(error)}`,
+      'EFORMAT'
+    )
   }
 }
 
-const writeDocument = (file, document) => {
+const isMapping = value =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+
+const onlyDocument = (file, text) => {
+  const documents = jsYaml.loadAll(text)
+  if (documents.length > 1) {
+    throw new OnesecretError(
+      `${file} must hold a single YAML document`,
+      'EFORMAT'
+    )
+  }
+  return documents[0]
+}
+
+const parsePlain = (file, text) => {
+  if (!isJson(file)) return onlyDocument(file, text)
+  return text.trim() === '' ? null : JSON.parse(text)
+}
+
+const readPlain = file => {
+  let values
+  try {
+    values = parsePlain(file, fs.readFileSync(file, 'utf8'))
+  } catch (error) {
+    if (error instanceof OnesecretError) throw error
+    throw new OnesecretError(
+      `cannot read ${file}: ${parseErrorOf(error)}`,
+      'EFORMAT'
+    )
+  }
+  if (values === undefined || values === null) return {}
+  if (!isMapping(values)) {
+    throw new OnesecretError(
+      `${file} must be a mapping of NAME: value`,
+      'EFORMAT'
+    )
+  }
+  if (isMapping(values.sops) && values.sops.mac) {
+    throw new OnesecretError(
+      `${file} is encrypted with sops, rename it to ${path
+        .basename(file)
+        .replace(PLAIN_FILE, '$1.enc.$2')}`,
+      'EFORMAT'
+    )
+  }
+  return values
+}
+
+const modeOf = file => {
+  try {
+    return fs.statSync(file).mode & 0o777
+  } catch {
+    return null
+  }
+}
+
+const realPathOf = file => {
+  try {
+    return fs.realpathSync(file)
+  } catch {
+    return file
+  }
+}
+
+const writeText = (link, text) => {
+  const file = realPathOf(link)
   fs.mkdirSync(path.dirname(file), { recursive: true })
+  const mode = modeOf(file)
   const temporary = `${file}.${process.pid}.tmp`
-  fs.writeFileSync(temporary, stringify(file, document))
+  fs.writeFileSync(temporary, text)
+  if (mode !== null) fs.chmodSync(temporary, mode)
   fs.renameSync(temporary, file)
 }
+
+const writeDocument = (file, document) =>
+  writeText(file, stringify(file, document))
 
 const readSopsConfig = file => {
   try {
@@ -95,10 +207,17 @@ module.exports = {
   SOPS_CONFIG,
   creationRule,
   readSopsConfig,
+  fileKindOf,
   findLayerFile,
+  findPlainFile,
+  isMapping,
+  layerOfFile,
+  parseErrorOf,
   layerFileOrNew,
   layersFor,
   readDocument,
+  readPlain,
   stringify,
-  writeDocument
+  writeDocument,
+  writeText
 }

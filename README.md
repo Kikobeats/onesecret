@@ -9,10 +9,10 @@
 Commit your credentials encrypted next to your code, and keep a single age key to read them. The files are [SOPS](https://github.com/getsops/sops) files, so the `sops` CLI and every tool around it keep working, but nothing has to be installed: encryption and decryption run in Node.js with no native binaries.
 
 - **One key.** One age key decrypts every environment. It lives in CI and in your team's password manager, never in the image and never in the running app.
-- **Layers.** `secrets/default.enc.yml` holds what every environment shares, and `secrets/production.enc.yml` overrides it for production.
+- **Layers.** `config/default.yml` and `config/default.enc.yml` hold what every environment shares, and `config/production.yml` and `config/production.enc.yml` override them for production. Plain settings and secrets live side by side, and `config()` returns them as one object.
 - **Production never needs the key.** Deploy pushes the decrypted values to the platform (a Kubernetes Secret, Fly secrets). At boot, `config()` sees every value already in the environment and decrypts nothing. In `production` and `staging` it never runs `keyCommand`, so a missing secret fails the boot instead of fetching a key.
 - **Fails fast.** Secret names are stored in plaintext, so `config()` knows what must exist and names exactly what is missing.
-- **Fast.** Decrypting two layers takes about 5ms on a cold start and under 0.5ms after that, against roughly 30ms for spawning `sops -d` twice. When the platform already injected every secret, `config()` takes under 0.1ms.
+- **Fast.** The first `config()` call that decrypts two layers takes about 5ms, after about 9ms to load the module, and about 0.5ms after that, against roughly 30ms for spawning `sops -d` twice. When the platform already injected every secret, `config()` decrypts nothing: about 4ms for the first call at boot, then about 0.2ms.
 
 ## Install
 
@@ -25,21 +25,38 @@ $ npm install onesecret
 ```bash
 $ npx onesecret init
 public key   age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
-private key  appended to ~/.config/sops/age/keys.txt
+private key  AGE-SECRET-KEY-1…
 sops config  .sops.yaml
-secrets      secrets/default.enc.yml
+secrets      config/default.enc.yml
 
+The private key is shown only now and is not saved anywhere. Keep it in your
+password manager and as SOPS_AGE_KEY in CI. To use it in this shell:
+
+  export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
+
+$ export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 $ npx onesecret set DATABASE_URL=postgres://localhost/app STRIPE_KEY=sk_test_123
 $ npx onesecret set --env production DATABASE_URL=postgres://db.internal/app
-$ git add .sops.yaml secrets
+$ git add .sops.yaml config
 ```
+
+`init` prints the private key once and writes it nowhere, so it never sits in a file on your disk. Save it in your password manager before closing the terminal: without it, nobody can decrypt the files.
 
 Load them as the first thing your app does:
 
 ```js
-require('onesecret').config()
+const config = require('onesecret').config()
 
+console.log(config.DATABASE_URL)
 console.log(process.env.DATABASE_URL)
+```
+
+`config()` reads the layer named by `NODE_ENV`. To pick another one, pass its name: `config('staging')`.
+
+To change a secret, open its file. You edit it decrypted, and it is encrypted again when you save:
+
+```bash
+$ npx onesecret edit config/production.enc.yml
 ```
 
 Or run anything with them, without touching its code:
@@ -53,17 +70,23 @@ $ npx onesecret exec -- node server.js
 ## How it works
 
 ```
-secrets/default.enc.yml      ← shared by every environment
-secrets/production.enc.yml   ← merged on top when NODE_ENV=production
+config/default.yml           ← plain settings shared by every environment
+config/default.enc.yml       ← secrets shared by every environment
+config/production.yml        ← plain settings for NODE_ENV=production
+config/production.enc.yml    ← secrets for NODE_ENV=production
 ```
 
-`config()` reads the names in those files (they are plaintext) and checks `process.env`:
+Every file is optional. They are merged in that order, so a later file wins, and nested objects are merged key by key. Plain files are YAML (`.yml`, `.yaml`) or JSON (`.json`), read with [js-yaml](https://github.com/nodeca/js-yaml); an empty file is an empty layer. Each layer has at most one plain and one encrypted file, so `default.yml` next to `default.json` is an error, and so is a sops-encrypted file named like a plain one.
 
-1. Every name is already set: nothing is decrypted, and the key is not needed. This is production. A variable set to an empty string counts as set.
-2. Some names are missing: it finds the age key, decrypts, and fills **only** the missing ones. Values already in the environment always win.
-3. Some names are missing and there is no key: it throws, naming each missing secret.
+A name is a secret while an encrypted file contributes to its merged value. A plain file that replaces a secret from a lower layer makes the name plain config for that env; a plain mapping merged into an encrypted one keeps it a secret. `config()` reads the secret names (they are plaintext in the encrypted files) and checks `process.env`:
 
-It also throws when it finds no encrypted file at all, so an image that forgot to copy `secrets/`, or a process started from the wrong directory, fails at boot instead of running without secrets.
+1. Every secret is already set: nothing is decrypted, and the key is not needed. This is production. A variable set to an empty string counts as set.
+2. Some secrets are missing: it finds the age key, decrypts, and fills **only** the missing ones.
+3. Some secrets are missing and there is no key: it throws, naming each missing secret.
+
+Values already in the environment always win, for plain settings too. Every other top-level value that is a string, number, boolean, or `null` is written into `process.env` as a string. `config()` returns the merged object with the YAML types kept, so `TIMEOUT: 60000` comes back as the number `60000`, while `process.env.TIMEOUT` is `"60000"`. Nested objects and lists, and names that are not valid variable names (such as `log-level`), are returned but not written into `process.env`. A value the environment provides comes back with its file's type when the string matches it, so `PORT=3000` is the number `3000` again, even for a secret, whose type is plaintext in the encrypted file. A secret must be a string, number, or boolean, since the platform injects it as a variable: a mapping or list secret missing from the environment fails with `EFORMAT`.
+
+Encrypted files accept only the standard tags `!!str`, `!!int`, `!!float`, `!!bool`, `!!null`, and `!!timestamp`, on values, so a value such as `!Passw0rd` must be quoted. A YAML error names the line and column but never the text, so a broken line cannot print a secret. Env names are lowercase letters, digits, `.`, `_`, and `-`, so a layer reads the same on every filesystem. It also throws when it finds no file at all, so an image that forgot to copy `config/`, or a process started from the wrong directory, fails at boot instead of running without its configuration.
 
 The age key is read from these sources, and every key found is tried:
 
@@ -73,7 +96,7 @@ The age key is read from these sources, and every key found is tried:
 
 A source can hold several keys, one per line or separated by spaces. Post-quantum (`AGE-SECRET-KEY-PQ-`) and plugin identities are skipped, and SSH keys are not read. A source that cannot be read or parsed, such as a keys file holding an SSH key, is skipped when another source has a key; when no key opens the file, the error names the sources it skipped.
 
-When none of them opens the file, `SOPS_AGE_KEY_CMD` or the `keyCommand` setting runs: a command that prints the key. It runs at most once per process, whether it succeeds or fails, and `config()` never runs it in `production` or `staging`.
+When none of them opens the file, `SOPS_AGE_KEY_CMD` or the `keyCommand` setting runs: a command that prints the key. It runs at most once per process, whether it succeeds or fails, and `config()` never runs it in `production` or `staging`. `load()` and the CLI (`exec`, `get`, `dotenv`, deploys) do run it in any env, since you call them on purpose.
 
 `keyCommand` comes from the project's `package.json`, so it has the same trust model as an npm script: only run onesecret in repositories you trust.
 
@@ -92,6 +115,8 @@ With `keyCommand`, nobody keeps the key on disk. For example, to read it from a 
 ## Deploy
 
 ### Kubernetes
+
+Deploys push only the secrets, with their merged values. Plain settings ship inside the image with the `config/` directory.
 
 Write the secrets into a Secret before `helm upgrade`, then pass the printed checksum to the chart so pods roll when a value changes:
 
@@ -124,9 +149,9 @@ $ npx onesecret fly --env production --app my-app
 $ fly deploy --app my-app
 ```
 
-`kubernetes` and `fly` require `--env`, and that layer file must exist, so a typo such as `--env prodution` or a wrong `--dir` fails instead of pushing the wrong secrets. To deploy the default layer alone, pass `--env default`.
+`kubernetes` and `fly` require `--env`, and that layer must have a plain or an encrypted file, so a typo such as `--env prodution` or a wrong `--dir` fails instead of pushing the wrong secrets. To deploy the default layer alone, pass `--env default`.
 
-Secrets are staged and applied by the next deploy. Pass `--no-stage` to restart the machines with them right away. Every value is encoded so that `fly secrets import` reads it back unchanged, including `#`, quotes, and multi-line values such as PEM keys. onesecret checks this against a port of flyctl's own parser before sending anything, and refuses the rare value that cannot round-trip (for example a line over 64 KiB, which flyctl drops). Keep secret names out of the `[env]` section of `fly.toml`, since those values would be stored as plain configuration.
+Secrets are staged and applied by the next deploy. Pass `--no-stage` to restart the machines with them right away. Every value is encoded so that `fly secrets import` reads it back unchanged, including `#`, quotes, and multi-line values such as PEM keys. onesecret checks this against a port of flyctl's own parser before sending anything, and refuses the rare value that cannot round-trip (for example a line over 64 KiB, which flyctl drops). Keep secret names out of the `[env]` section of `fly.toml`, since those values would be stored as plain configuration. `fly secrets import` adds and updates but never removes, so when a secret moves to a plain file, run `fly secrets unset NAME`, or the old secret keeps overriding the file.
 
 ### Anywhere else
 
@@ -136,11 +161,11 @@ $ npx onesecret dotenv --env production > .env.production
 
 Values are quoted only when needed, and every line is checked against both Node.js's own `.env` parser and the `dotenv` package before it is printed, so `#`, spaces, quotes, backslashes, and newlines read back unchanged with `node --env-file` or `dotenv`. A value that no quoting can carry through both, such as one starting with `'` and ending with `\`, is refused instead of corrupted.
 
-Keep the encrypted files in your image: `config()` reads the names from them to check that the platform injected every secret, and fails at boot if one is missing.
+Keep the `config/` directory in your image: `config()` reads the plain settings from it and the secret names to check that the platform injected every secret, and fails at boot if one is missing.
 
 ## Tests
 
-Unit tests usually do not need real credentials. Set `ONESECRET_SKIP=1` and `config()` does nothing:
+Unit tests usually do not need real credentials. Set `ONESECRET_SKIP=1` and `config()` never decrypts: it still loads the plain settings, and leaves unset any secret the environment does not provide.
 
 ```bash
 $ ONESECRET_SKIP=1 npm test
@@ -157,15 +182,17 @@ Usage
   $ onesecret <command> [options]
 
 Commands
-  init                      Create an age key, .sops.yaml, and secrets/default.enc.yml
+  init                      Create an age key and print it, then .sops.yaml and config/default.enc.yml
   set NAME=value...         Encrypt one or more secrets into a layer
   unset NAME...             Remove secrets from a layer
-  edit                      Open a layer decrypted in $EDITOR, encrypt it on save
+  edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
+                            (a plain .yml or .json file opens as it is)
   rekey                     Encrypt a layer again with a new data key and the .sops.yaml recipients
   ls                        List secret names (no key needed)
-  get NAME                  Print one decrypted secret
+  get NAME                  Print one value, from a plain or an encrypted layer
   dotenv                    Print every decrypted secret as NAME=value
-  exec -- <command>         Run a command with the secrets in its environment
+  exec -- <command>         Run a command with the config and secrets in its environment
+                            (--env also sets its NODE_ENV)
   kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
   fly --app <app>           Import the secrets into a Fly app, print their checksum
 
@@ -173,15 +200,26 @@ Options
   --env, -e        Layer to read on top of "default" (defaults to NODE_ENV, then "development").
                    Write commands (set, unset, edit, rekey) write this layer, "default" when omitted.
                    kubernetes and fly require it, and the layer file must exist ("default" deploys the base alone).
-  --dir            Directory holding the encrypted files (defaults to "secrets")
+  --dir            Directory holding the config files (defaults to "config")
   --namespace, -n  Kubernetes namespace
   --context        kubectl context
   --no-stage       fly: apply the secrets now instead of on the next deploy
+
+Examples
+  $ onesecret init
+  $ onesecret set DATABASE_URL=postgres://localhost/app
+  $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
+  $ onesecret edit config/production.enc.yml
+  $ onesecret exec -- node server.js
+  $ onesecret kubernetes --env production --name api-env --namespace api
+  $ onesecret fly --env production --app my-app
 ```
 
-`set` and `edit` only accept names that are valid environment variables, refuse `sops` (reserved for the file metadata), and refuse to write a value that the file's rules would leave in plaintext. A name ending in `_unencrypted` is stored in plaintext on purpose, as sops does.
+`set`, and `edit` of an encrypted file, only accept names that are valid environment variables, refuse `sops` (reserved for the file metadata), and refuse to write a value that the file's rules would leave in plaintext. A name ending in `_unencrypted` is stored in plaintext on purpose, as sops does.
 
 When an edit is not valid YAML, the editor opens again with your changes, and the error never prints the decrypted content.
+
+`edit` opens `$VISUAL` or `$EDITOR` (then `vi`). GUI editors that return at once, such as VS Code, Cursor, Zed, or Sublime Text, get their wait flag added, so `EDITOR=code` works without `--wait`. Any other editor command must wait until the file is closed, as git requires too. It takes the path of the file to open, such as `config/production.enc.yml`, or edits the `--env` layer when no path is given. A path that does not exist yet is created with the `.sops.yaml` rule, and a path no rule covers is refused before the editor opens. A plain `.yml` or `.json` path opens as it is; when it is saved invalid, the editor opens again. `get` reads a plain value without the key, and prints a nested value as YAML.
 
 ### Adding or removing a teammate
 
@@ -196,26 +234,32 @@ Removing someone from `.sops.yaml` stops them from reading future versions, but 
 
 ## API
 
-Every function takes the same options:
+`config`, `load`, and `names` take the env name as a string, or these options, which `kubernetes` and `fly` take too:
 
 | Option       | Default                            | Description                                           |
 | ------------ | ---------------------------------- | ----------------------------------------------------- |
 | `cwd`        | `process.cwd()`                    | Project root, where `package.json` is read from.      |
-| `dir`        | `"secrets"`                        | Directory with the encrypted files, relative to `cwd`. |
+| `dir`        | `"config"`                         | Directory with the config files, relative to `cwd`.   |
 | `env`        | `NODE_ENV`, then `"development"`   | Layer merged on top of `default`.                     |
 | `keyCommand` | none                               | Command that prints the age key.                      |
+| `processEnv` | `process.env`                      | `config()` only: the environment to read and fill, including `NODE_ENV` and `ONESECRET_SKIP`. |
 
 `dir` and `keyCommand` can also be set in `package.json` under `"onesecret"`.
 
-### config([options])
+### config([env | options])
 
-Fills the missing secrets into `process.env` (or `options.processEnv`) and returns an object with every secret name and its value. Throws an `OnesecretError` with code `EMISSING` when a secret is missing and there is no key to decrypt it.
+Merges the layers, fills the missing values into `process.env` (or `options.processEnv`), and returns the merged object, with the values the environment already had taking their place. Throws an `OnesecretError` with code `EMISSING` when a secret is missing and there is no key to decrypt it.
 
-### load([options])
+```js
+const config = require('onesecret').config() // NODE_ENV, then "development"
+const staging = require('onesecret').config('staging')
+```
 
-Returns every secret decrypted, with the `env` layer merged over `default`. Values keep their YAML type.
+### load([env | options])
 
-### names([options])
+Returns every layer merged and decrypted, ignoring `process.env`. Values keep their YAML type.
+
+### names([env | options])
 
 Returns the secret names, without needing the key.
 
@@ -245,9 +289,26 @@ Every error is an `OnesecretError` with a `code`:
 | `EVALUE`    | A value cannot be stored or turned into an environment variable.   |
 | `EDEPLOY`   | `kubectl` or `fly` failed.                                         |
 
+## Coming from miconfig
+
+onesecret loads `default` plus the `NODE_ENV` layer and merges them the same way, so the loader file becomes one line:
+
+```diff
+- const loadConfig = require('miconfig')
+- const environment = { default: loadYaml('default'), production: loadYaml('production') }
+- module.exports = loadConfig(environment)
++ module.exports = require('onesecret').config()
+```
+
+The returned object is plain: read values directly or with destructuring (`const { TIMEOUT } = config`). There is no `config.get`, `config.has`, or `config.required`; a missing secret already fails at boot. Three differences to plan for:
+
+- A value set in the environment overrides the files.
+- Top-level scalar values are written into `process.env` as strings, so `TZ`, `DEBUG`, or `NODE_ENV` in a plain file take effect for the whole process.
+- A missing secret throws `EMISSING` instead of being `undefined`. Run unit tests with `ONESECRET_SKIP=1` to keep the old behavior: plain values load, secrets stay unset unless the environment has them.
+
 ## Compatibility
 
-onesecret reads and writes SOPS files encrypted for age X25519 recipients, in YAML or JSON, and reads every value type sops writes in those formats (`str`, `int`, `float`, `bool`, `time`). Plain YAML values resolve the way go-yaml v3 does in sops, so `0777` is 511 and `2024-01-01` is a timestamp. Integers beyond 2^53 come back as `BigInt`, and timestamps as RFC 3339 strings, which are written back as strings. Rules and `path_regex` accept Go regular expression syntax such as `(?i)`, `\A`, `\z`, and `[[:lower:]]`. The test suite checks all of this against `sops` 3.13 and `age` 1.3 in both directions, including `mac_only_encrypted` and the `*_suffix` and `*_regex` rules. Like sops, it rejects truncated authentication tags and low-order age recipients.
+onesecret reads and writes SOPS files encrypted for age X25519 recipients, in YAML or JSON, and reads every value type sops writes in those formats (`str`, `int`, `float`, `bool`, `time`). Values in encrypted files resolve the way go-yaml v3 does in sops, so `0777` is 511 and `2024-01-01` is a timestamp. Plain files are read with js-yaml instead, where `0777` is 777, YAML merge keys (`<<`) are not applied, and integers beyond 2^53 lose precision, so moving a value between a plain and an encrypted file can change it. Integers beyond 2^53 come back as `BigInt`, and timestamps as RFC 3339 strings, which are written back as strings. Rules and `path_regex` accept Go regular expression syntax such as `(?i)`, `\A`, `\z`, and `[[:lower:]]`. The test suite checks all of this against `sops` 3.13 and `age` 1.3 in both directions, including `mac_only_encrypted` and the `*_suffix` and `*_regex` rules. Like sops, it rejects truncated authentication tags and low-order age recipients.
 
 It does not support PGP, cloud KMS, key groups, Shamir secret sharing, comment-based rules, or YAML anchors and multiple documents in an encrypted file (`.sops.yaml` can use anchors). It refuses to write a file that also has KMS or PGP keys rather than drop them, and YAML comments are lost when it writes a file. Use the `sops` CLI for any of those.
 

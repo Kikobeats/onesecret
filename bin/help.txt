@@ -2,15 +2,17 @@ Usage
   $ onesecret <command> [options]
 
 Commands
-  init                      Create an age key, .sops.yaml, and secrets/default.enc.yml
+  init                      Create an age key and print it, then .sops.yaml and config/default.enc.yml
   set NAME=value...         Encrypt one or more secrets into a layer
   unset NAME...             Remove secrets from a layer
-  edit                      Open a layer decrypted in $EDITOR, encrypt it on save
+  edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
+                            (a plain .yml or .json file opens as it is)
   rekey                     Encrypt a layer again with a new data key and the .sops.yaml recipients
   ls                        List secret names (no key needed)
-  get NAME                  Print one decrypted secret
+  get NAME                  Print one value, from a plain or an encrypted layer
   dotenv                    Print every decrypted secret as NAME=value
-  exec -- <command>         Run a command with the secrets in its environment
+  exec -- <command>         Run a command with the config and secrets in its environment
+                            (--env also sets its NODE_ENV)
   kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
   fly --app <app>           Import the secrets into a Fly app, print their checksum
 
@@ -18,7 +20,7 @@ Options
   --env, -e        Layer to read on top of "default" (defaults to NODE_ENV, then "development").
                    Write commands (set, unset, edit, rekey) write this layer, "default" when omitted.
                    kubernetes and fly require it, and the layer file must exist ("default" deploys the base alone).
-  --dir            Directory holding the encrypted files (defaults to "secrets")
+  --dir            Directory holding the config files (defaults to "config")
   --namespace, -n  Kubernetes namespace
   --context        kubectl context
   --no-stage       fly: apply the secrets now instead of on the next deploy
@@ -27,6 +29,7 @@ Examples
   $ onesecret init
   $ onesecret set DATABASE_URL=postgres://localhost/app
   $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
+  $ onesecret edit config/production.enc.yml
   $ onesecret exec -- node server.js
   $ onesecret kubernetes --env production --name api-env --namespace api
   $ onesecret fly --env production --app my-app

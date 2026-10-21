@@ -39,7 +39,9 @@ const isMapping = value =>
   [Object.prototype, null].includes(Object.getPrototypeOf(value))
 
 const mapLeaves = (node, path, transform, orderOf) => {
-  if (Array.isArray(node)) { return node.map(item => mapLeaves(item, path, transform, orderOf)) }
+  if (Array.isArray(node)) {
+    return node.map(item => mapLeaves(item, path, transform, orderOf))
+  }
   if (isMapping(node)) {
     return Object.fromEntries(
       orderOf(node).map(key => [
@@ -64,13 +66,21 @@ const isEncryptedPath = (path, rules) => {
   if (
     rules.unencrypted_suffix &&
     path.some(key => key.endsWith(rules.unencrypted_suffix))
-  ) { encrypted = false }
-  if (rules.encrypted_suffix) { encrypted = path.some(key => key.endsWith(rules.encrypted_suffix)) }
+  ) {
+    encrypted = false
+  }
+  if (rules.encrypted_suffix) {
+    encrypted = path.some(key => key.endsWith(rules.encrypted_suffix))
+  }
   if (
     rules.unencrypted_regex &&
     path.some(key => goRegExp(rules.unencrypted_regex).test(key))
-  ) { encrypted = false }
-  if (rules.encrypted_regex) { encrypted = path.some(key => goRegExp(rules.encrypted_regex).test(key)) }
+  ) {
+    encrypted = false
+  }
+  if (rules.encrypted_regex) {
+    encrypted = path.some(key => goRegExp(rules.encrypted_regex).test(key))
+  }
   return encrypted
 }
 
@@ -108,7 +118,9 @@ const formatFloat = number => {
   const digits = whole + fraction
   const point = whole.length + Number(exponentText)
   if (point <= 0) return `${sign}0.${'0'.repeat(-point)}${digits}`
-  if (point >= digits.length) { return sign + digits + '0'.repeat(point - digits.length) }
+  if (point >= digits.length) {
+    return sign + digits + '0'.repeat(point - digits.length)
+  }
   return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`
 }
 
@@ -155,7 +167,9 @@ const PARSERS = {
   int: bytes => parseInteger(bytes.toString()),
   float: bytes => {
     const text = bytes.toString()
-    if (/^[-+]?inf(inity)?$/i.test(text)) { return text.startsWith('-') ? -Infinity : Infinity }
+    if (/^[-+]?inf(inity)?$/i.test(text)) {
+      return text.startsWith('-') ? -Infinity : Infinity
+    }
     return /^nan$/i.test(text) ? NaN : Number.parseFloat(text)
   },
   bytes: bytes => bytes
@@ -187,7 +201,9 @@ const encryptValue = (value, dataKey, aad) => {
 const openValue = (value, dataKey, aad) => {
   if (isBlank(value)) return { value, plaintext: Buffer.alloc(0) }
   const match = typeof value === 'string' && ENCRYPTED_VALUE.exec(value)
-  if (!match) { throw new OnesecretError(`value at "${aad}" is not encrypted`, 'EFORMAT') }
+  if (!match) {
+    throw new OnesecretError(`value at "${aad}" is not encrypted`, 'EFORMAT')
+  }
   const [, data, ivText, tagText, type] = match
   if (!PARSERS[type]) {
     throw new OnesecretError(
@@ -253,11 +269,15 @@ const unwrapDataKey = (metadata, identities) => {
     )
   }
   const entries = metadata.age || []
-  if (entries.length === 0) { throw new OnesecretError('file has no age recipients', 'EFORMAT') }
+  if (entries.length === 0) {
+    throw new OnesecretError('file has no age recipients', 'EFORMAT')
+  }
   for (const { enc } of entries) {
     const dataKey = openDataKey(enc, identities)
     if (dataKey) {
-      if (dataKey.length !== DATA_KEY_SIZE) { throw new OnesecretError('data key has the wrong size', 'EFORMAT') }
+      if (dataKey.length !== DATA_KEY_SIZE) {
+        throw new OnesecretError('data key has the wrong size', 'EFORMAT')
+      }
       return dataKey
     }
   }
@@ -270,7 +290,9 @@ const unwrapDataKey = (metadata, identities) => {
 
 const metadataOf = document => {
   const metadata = isMapping(document) ? document[METADATA_KEY] : undefined
-  if (!isMapping(metadata)) { throw new OnesecretError('file is not encrypted with sops', 'EFORMAT') }
+  if (!isMapping(metadata)) {
+    throw new OnesecretError('file is not encrypted with sops', 'EFORMAT')
+  }
   return metadata
 }
 
@@ -279,11 +301,28 @@ const names = document => {
   return keysOf(document).filter(key => key !== METADATA_KEY)
 }
 
+const valueTypeOf = value => {
+  const encrypted =
+    typeof value === 'string' ? ENCRYPTED_VALUE.exec(value) : null
+  if (encrypted) return encrypted[4]
+  if (value === null) return 'null'
+  if (isMapping(value)) return 'mapping'
+  if (Array.isArray(value)) return 'list'
+  return typeOf(value)
+}
+
+const valueTypes = document =>
+  Object.fromEntries(
+    names(document).map(name => [name, valueTypeOf(document[name])])
+  )
+
 const recipientsOf = document =>
   (metadataOf(document).age || []).map(({ recipient }) => recipient)
 
 const withoutComments = node => {
-  if (Array.isArray(node)) { return node.filter(item => item !== COMMENT).map(withoutComments) }
+  if (Array.isArray(node)) {
+    return node.filter(item => item !== COMMENT).map(withoutComments)
+  }
   if (isMapping(node)) {
     return Object.fromEntries(
       Object.entries(node).map(([key, value]) => [key, withoutComments(value)])
@@ -336,7 +375,9 @@ const encrypt = (tree, { recipients, rules = DEFAULT_RULES }) => {
       'EVALUE'
     )
   }
-  if (recipients.length === 0) { throw new OnesecretError('at least one age recipient is required', 'EKEY') }
+  if (recipients.length === 0) {
+    throw new OnesecretError('at least one age recipient is required', 'EKEY')
+  }
   const dataKey = crypto.randomBytes(DATA_KEY_SIZE)
   const hash = macHash(rules)
   const encrypted = mapLeaves(
@@ -352,7 +393,9 @@ const encrypt = (tree, { recipients, rules = DEFAULT_RULES }) => {
           'EVALUE'
         )
       }
-      if (shouldEncrypt || !rules.mac_only_encrypted) { hash.update(serialize(value)) }
+      if (shouldEncrypt || !rules.mac_only_encrypted) {
+        hash.update(serialize(value))
+      }
       if (!shouldEncrypt || isBlank(value)) return value
       return encryptValue(value, dataKey, additionalData(path))
     },
@@ -386,5 +429,6 @@ module.exports = {
   names,
   otherKeySources,
   recipientsOf,
-  rulesOf
+  rulesOf,
+  valueTypes
 }

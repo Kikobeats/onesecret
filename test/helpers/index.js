@@ -15,7 +15,9 @@ const OTHER_KEY = fixtureKeyText('other-key.txt').match(/AGE-SECRET-KEY-\w+/)[0]
 
 const createdDirs = []
 process.on('exit', () => {
-  for (const dir of createdDirs) { fs.rmSync(dir, { recursive: true, force: true }) }
+  for (const dir of createdDirs) {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'onesecret-home-'))
@@ -40,7 +42,7 @@ const temporaryDir = prefix => {
 
 const project = ({ fixture = 'sops', packageJson } = {}) => {
   const cwd = temporaryDir('project')
-  fs.cpSync(path.join(FIXTURES, fixture), path.join(cwd, 'secrets'), {
+  fs.cpSync(path.join(FIXTURES, fixture), path.join(cwd, 'config'), {
     recursive: true
   })
   if (packageJson) {
@@ -68,7 +70,9 @@ const withEnv = (overrides, fn) => {
   }
   try {
     const result = fn()
-    if (result && typeof result.then === 'function') { return result.finally(restore) }
+    if (result && typeof result.then === 'function') {
+      return result.finally(restore)
+    }
     restore()
     return result
   } catch (error) {
