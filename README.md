@@ -69,7 +69,7 @@ The age key is read from these sources, and every key found is tried:
 - `SOPS_AGE_KEY_FILE`, a path to a keys file.
 - The sops keys file: `$XDG_CONFIG_HOME/sops/age/keys.txt`, `~/Library/Application Support/sops/age/keys.txt` on macOS, and `~/.config/sops/age/keys.txt` on any system.
 
-A source can hold several keys, one per line or separated by spaces. Post-quantum (`AGE-SECRET-KEY-PQ-`) and plugin identities are skipped, and SSH keys are not read.
+A source can hold several keys, one per line or separated by spaces. Post-quantum (`AGE-SECRET-KEY-PQ-`) and plugin identities are skipped, and SSH keys are not read. A source that cannot be read or parsed, such as a keys file holding an SSH key, is skipped when another source has a key; when no key opens the file, the error names the sources it skipped.
 
 When none of them opens the file, `SOPS_AGE_KEY_CMD` or the `keyCommand` setting runs: a command that prints the key. It runs at most once per process, whether it succeeds or fails, and `config()` never runs it in `production` or `staging`.
 
