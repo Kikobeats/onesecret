@@ -1,8 +1,12 @@
 {
   "name": "onesecret",
-  "description": "Keep just one secret to decrypt the rest.",
+  "description": "Keep just one secret to decrypt the rest: SOPS + age secrets for Node.js, with no binaries to install.",
   "homepage": "https://github.com/kikobeats/onesecret",
   "version": "0.0.0",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
   "bin": {
     "onesecret": "bin/index.js"
   },
@@ -18,8 +22,19 @@
   "bugs": {
     "url": "https://github.com/kikobeats/onesecret/issues"
   },
-  "keywords": [],
+  "keywords": [
+    "age",
+    "config",
+    "dotenv",
+    "encryption",
+    "env",
+    "fly",
+    "kubernetes",
+    "secrets",
+    "sops"
+  ],
   "dependencies": {
+    "js-yaml": "~5.5.0",
     "mri": "~1.2.0"
   },
   "devDependencies": {
@@ -27,6 +42,7 @@
     "@commitlint/config-conventional": "latest",
     "ava": "latest",
     "c8": "latest",
+    "dotenv": "~17.4.2",
     "finepack": "latest",
     "git-authors-cli": "latest",
     "github-generate-release": "latest",
@@ -39,6 +55,10 @@
   "engines": {
     "node": ">= 24"
   },
+  "files": [
+    "bin",
+    "src"
+  ],
   "scripts": {
     "clean": "rm -rf node_modules",
     "contributors": "(npx git-authors-cli && npx finepack && git add package.json && git commit -m 'build: contributors' --no-verify) || true",
@@ -48,11 +68,18 @@
     "pretest": "pnpm lint",
     "release": "standard-version -a",
     "release:github": "github-generate-release",
-    "release:tags": "git push --follow-tags origin HEAD:master",
+    "release:tags": "git push --follow-tags origin HEAD:main",
     "test": "c8 ava"
   },
   "preferGlobal": true,
   "license": "MIT",
+  "ava": {
+    "files": [
+      "test/**/*.js",
+      "!test/helpers/**"
+    ],
+    "timeout": "30s"
+  },
   "commitlint": {
     "extends": [
       "@commitlint/config-conventional"
@@ -62,9 +89,6 @@
         0
       ]
     }
-  },
-  "exports": {
-    ".": "./cli/index.js"
   },
   "nano-staged": {
     "*.js": [

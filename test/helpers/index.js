@@ -1,0 +1,140 @@
+'use strict'
+
+const { execFileSync, spawnSync } = require('node:child_process')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+
+const FIXTURES = path.join(__dirname, '..', 'fixtures')
+const BIN = path.join(__dirname, '..', '..', 'bin', 'index.js')
+const fixtureKeyText = name =>
+  fs.readFileSync(path.join(FIXTURES, name), 'utf8')
+const FIXTURE_KEY = fixtureKeyText('key.txt').match(/AGE-SECRET-KEY-\w+/)[0]
+const FIXTURE_RECIPIENT = fixtureKeyText('key.txt').match(/age1\w+/)[0]
+const OTHER_KEY = fixtureKeyText('other-key.txt').match(/AGE-SECRET-KEY-\w+/)[0]
+
+const createdDirs = []
+process.on('exit', () => {
+  for (const dir of createdDirs) { fs.rmSync(dir, { recursive: true, force: true }) }
+})
+
+const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'onesecret-home-'))
+createdDirs.push(isolatedHome)
+process.env.HOME = isolatedHome
+process.env.XDG_CONFIG_HOME = path.join(isolatedHome, '.config')
+for (const name of [
+  'SOPS_AGE_KEY',
+  'SOPS_AGE_KEY_FILE',
+  'SOPS_AGE_KEY_CMD',
+  'ONESECRET_SKIP',
+  'NODE_ENV'
+]) {
+  delete process.env[name]
+}
+
+const temporaryDir = prefix => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), `onesecret-${prefix}-`))
+  createdDirs.push(dir)
+  return dir
+}
+
+const project = ({ fixture = 'sops', packageJson } = {}) => {
+  const cwd = temporaryDir('project')
+  fs.cpSync(path.join(FIXTURES, fixture), path.join(cwd, 'secrets'), {
+    recursive: true
+  })
+  if (packageJson) {
+    fs.writeFileSync(
+      path.join(cwd, 'package.json'),
+      JSON.stringify(packageJson)
+    )
+  }
+  return cwd
+}
+
+const withEnv = (overrides, fn) => {
+  const saved = Object.fromEntries(
+    Object.keys(overrides).map(name => [name, process.env[name]])
+  )
+  const restore = () => {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+  }
+  for (const [name, value] of Object.entries(overrides)) {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+  }
+  try {
+    const result = fn()
+    if (result && typeof result.then === 'function') { return result.finally(restore) }
+    restore()
+    return result
+  } catch (error) {
+    restore()
+    throw error
+  }
+}
+
+const fakeBinary = (name, script) => {
+  const dir = temporaryDir('bin')
+  const file = path.join(dir, name)
+  fs.writeFileSync(file, `#!/usr/bin/env node\n${script}\n`, { mode: 0o755 })
+  return { dir, file }
+}
+
+const recordingBinary = (
+  name,
+  { exitCode = 0, stdout = '', stderr = '' } = {}
+) => {
+  const record = path.join(temporaryDir('record'), 'call.json')
+  const { dir, file } = fakeBinary(
+    name,
+    `const input = require('fs').readFileSync(0, 'utf8')
+require('fs').writeFileSync(${JSON.stringify(
+      record
+    )}, JSON.stringify({ args: process.argv.slice(2), input, env: process.env }))
+process.stdout.write(${JSON.stringify(stdout)})
+process.stderr.write(${JSON.stringify(stderr)})
+process.exit(${exitCode})`
+  )
+  return { dir, file, call: () => JSON.parse(fs.readFileSync(record, 'utf8')) }
+}
+
+const cli = (args, { cwd, env = {}, input } = {}) => {
+  const result = spawnSync(process.execPath, [BIN, ...args], {
+    cwd,
+    input,
+    encoding: 'utf8',
+    env: { ...process.env, ...env }
+  })
+  return {
+    code: result.status,
+    stdout: result.stdout.trim(),
+    stderr: result.stderr.trim()
+  }
+}
+
+const hasBinary = name => {
+  try {
+    execFileSync(name, ['--version'], { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+module.exports = {
+  FIXTURES,
+  FIXTURE_KEY,
+  FIXTURE_RECIPIENT,
+  OTHER_KEY,
+  cli,
+  fakeBinary,
+  hasBinary,
+  project,
+  recordingBinary,
+  temporaryDir,
+  withEnv
+}

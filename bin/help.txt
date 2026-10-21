@@ -1,13 +1,32 @@
 Usage
-  $ onesecret <command>[options]
+  $ onesecret <command> [options]
 
 Commands
-  --file Read the file
+  init                      Create an age key, .sops.yaml, and secrets/default.enc.yml
+  set NAME=value...         Encrypt one or more secrets into a layer
+  unset NAME...             Remove secrets from a layer
+  edit                      Open a layer decrypted in $EDITOR, encrypt it on save
+  rekey                     Encrypt a layer again with a new data key and the .sops.yaml recipients
+  ls                        List secret names (no key needed)
+  get NAME                  Print one decrypted secret
+  dotenv                    Print every decrypted secret as NAME=value
+  exec -- <command>         Run a command with the secrets in its environment
+  kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
+  fly --app <app>           Import the secrets into a Fly app, print their checksum
 
 Options
-  --wait  Wait for the app to exit
+  --env, -e        Layer to read on top of "default" (defaults to NODE_ENV, then "development").
+                   Write commands (set, unset, edit, rekey) write this layer, "default" when omitted.
+                   kubernetes and fly require it, and the layer file must exist ("default" deploys the base alone).
+  --dir            Directory holding the encrypted files (defaults to "secrets")
+  --namespace, -n  Kubernetes namespace
+  --context        kubectl context
+  --no-stage       fly: apply the secrets now instead of on the next deploy
 
 Examples
-  $ npm-url # Open the current package if you are over package.json path.
-  $ npm-url json-future
-  $ npm-url json-future -- 'google chrome' --incognito
+  $ onesecret init
+  $ onesecret set DATABASE_URL=postgres://localhost/app
+  $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
+  $ onesecret exec -- node server.js
+  $ onesecret kubernetes --env production --name api-env --namespace api
+  $ onesecret fly --env production --app my-app
