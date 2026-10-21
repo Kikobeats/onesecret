@@ -241,13 +241,15 @@ const ENV_PARSERS = {
   bool: text => ({ true: true, false: false }[text])
 }
 
-const roundTrips = (name, value, text) =>
-  value !== undefined && toEnvValue(name, value) === text
+const envStringOf = value => (value === null ? '' : String(value))
+
+const roundTrips = (value, text) =>
+  value !== undefined && envStringOf(value) === text
 
 const typedSecret = (name, text, secret) => {
   const parse = secret && ENV_PARSERS[secret.type]
   const value = parse ? parse(text) : undefined
-  return roundTrips(name, value, text) ? value : text
+  return roundTrips(value, text) ? value : text
 }
 
 const typedFromEnv = (name, text, merged, secret) => {
@@ -255,9 +257,7 @@ const typedFromEnv = (name, text, merged, secret) => {
     return typedSecret(name, text, secret)
   }
   const value = merged[name]
-  return isExportable(name, value) && roundTrips(name, value, text)
-    ? value
-    : text
+  return isExportable(name, value) && roundTrips(value, text) ? value : text
 }
 
 const assertScalarSecrets = (secrets, missing) => {

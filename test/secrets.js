@@ -1196,3 +1196,16 @@ test('a standard tag whose value does not match it is refused', t => {
     { A: 5, B: true, C: 1.5, D: null }
   )
 })
+
+test('a set secret whose name is not a variable name comes back typed without throwing', t => {
+  const cwd = encryptedProject({
+    default: { 'api-port': 3000, 'api-ratio': 1.5 }
+  })
+  t.deepEqual(
+    onesecret.config({
+      cwd,
+      processEnv: { 'api-port': '3000', 'api-ratio': '1.5' }
+    }),
+    { 'api-port': 3000, 'api-ratio': 1.5 }
+  )
+})
