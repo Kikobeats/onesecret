@@ -1,0 +1,15 @@
+{
+  "name": "onesecret-example",
+  "private": true,
+  "description": "A tiny app that reads its credentials with onesecret.",
+  "main": "index.js",
+  "dependencies": {
+    "onesecret": "file:.."
+  },
+  "onesecret": {
+    "keyCommand": "cat age.key"
+  },
+  "scripts": {
+    "start": "node index.js"
+  }
+}

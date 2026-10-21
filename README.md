@@ -48,6 +48,8 @@ Or run anything with them, without touching its code:
 $ npx onesecret exec -- node server.js
 ```
 
+[`example/`](example) is a runnable app that shows each of these cases.
+
 ## How it works
 
 ```
