@@ -1150,3 +1150,49 @@ test('a missing secret whose name can never be a variable is refused up front', 
     )
   })
 })
+
+test('a layer file is found only under its exact lowercase name', t => {
+  const cwd = temporaryDir('exact-case')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'LOG_LEVEL: debug\n')
+  writePlain(cwd, 'Production.yml', 'LOG_LEVEL: info\n')
+  writePlain(cwd, 'production.YAML', 'LOG_LEVEL: loud\n')
+  t.deepEqual(
+    onesecret.config({ cwd, processEnv: { NODE_ENV: 'production' } }),
+    { LOG_LEVEL: 'debug' }
+  )
+})
+
+test('an empty or comment-only encrypted file is an empty layer for config', t => {
+  const cwd = encryptedProject({ default: { T: 's' } })
+  for (const text of ['', '# soon\n']) {
+    writePlain(cwd, 'staging.enc.yml', text)
+    t.deepEqual(onesecret.names({ cwd, env: 'staging' }), ['T'])
+    t.deepEqual(
+      onesecret.config({ cwd, env: 'staging', processEnv: { T: 's' } }),
+      { T: 's' }
+    )
+  }
+})
+
+test('a standard tag whose value does not match it is refused', t => {
+  const write = require('../src/write')
+  for (const text of [
+    'A: !!int abc\n',
+    'A: !!bool yes\n',
+    'A: !!null x\n',
+    'A: !!float abc\n'
+  ]) {
+    t.is(
+      t.throws(() => write.fromEditableYaml(text), undefined, text).code,
+      'EVALUE',
+      text
+    )
+  }
+  t.deepEqual(
+    write.fromEditableYaml(
+      'A: !!int 5\nB: !!bool true\nC: !!float 1.5\nD: !!null ~\n'
+    ),
+    { A: 5, B: true, C: 1.5, D: null }
+  )
+})

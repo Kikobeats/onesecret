@@ -155,10 +155,30 @@ const assertTag = (tag, isValue) => {
   }
 }
 
+const TAG_CHECKS = {
+  int: value => Number.isSafeInteger(value) || typeof value === 'bigint',
+  float: value => typeof value === 'number',
+  bool: value => typeof value === 'boolean',
+  null: value => value === null,
+  timestamp: value => typeof value === 'string'
+}
+
+const tagNameOf = tag =>
+  tag.startsWith('!!') ? tag.slice(2) : tag.slice(TAG_PREFIX.length + 2, -1)
+
+const resolveTagged = (text, tag) => {
+  const value = resolvePlain(text)
+  if (!TAG_CHECKS[tagNameOf(tag)](value)) {
+    throw new Error(`a value does not match its !!${tagNameOf(tag)} tag`)
+  }
+  return value
+}
+
 const resolveScalar = (source, event) => {
   const text = yaml.getScalarValue(source, event)
   const tag = tagOf(source, event)
   if (tag === '!!str' || tag === `!<${TAG_PREFIX}str>`) return text
+  if (tag) return resolveTagged(text, tag)
   if (tag || event.style === yaml.SCALAR_STYLE_PLAIN) return resolvePlain(text)
   return text
 }

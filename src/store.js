@@ -23,10 +23,20 @@ const stringify = (file, document) =>
 const layersFor = env =>
   env && env !== DEFAULT_LAYER ? [DEFAULT_LAYER, env] : [DEFAULT_LAYER]
 
+const namesIn = dir => {
+  try {
+    return new Set(fs.readdirSync(dir))
+  } catch {
+    return new Set()
+  }
+}
+
 const findFile = (dir, layer, extensions) => {
+  const names = namesIn(dir)
   const found = extensions
-    .map(extension => path.join(dir, layer + extension))
-    .filter(file => fs.existsSync(file))
+    .map(extension => layer + extension)
+    .filter(name => names.has(name))
+    .map(name => path.join(dir, name))
   if (found.length > 1) {
     throw new OnesecretError(
       `${found

@@ -201,6 +201,7 @@ Options
                    Write commands (set, unset, edit, rekey) write this layer, "default" when omitted.
                    kubernetes and fly require it, and the layer file must exist ("default" deploys the base alone).
   --dir            Directory holding the config files (defaults to "config")
+  --cwd            Project root, where package.json and the config directory are (defaults to the current directory)
   --namespace, -n  Kubernetes namespace
   --context        kubectl context
   --no-stage       fly: apply the secrets now instead of on the next deploy
