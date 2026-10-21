@@ -905,6 +905,9 @@ test('GUI editors that return at once are told to wait', t => {
     ['code --wait', ['--wait']],
     ['cursor -w', ['-w']],
     ['mate', ['-w']],
+    ['gvim', ['-f']],
+    ['kate', ['--block']],
+    ['idea', ['--wait']],
     ['vim', []]
   ]) {
     const name = editor.split(' ')[0]
@@ -1001,4 +1004,46 @@ test('an empty encrypted file is an empty layer', t => {
     cli(['get', '--env', 'staging', 'S3_KEY'], { cwd, env: withKey }).stdout,
     'AKIA-default'
   )
+})
+
+test('writes refuse a layer file whose name differs only in letter case', t => {
+  const cwd = project({ fixture: 'app' })
+  fs.renameSync(
+    path.join(cwd, 'config', 'production.enc.yml'),
+    path.join(cwd, 'config', 'Production.enc.yml')
+  )
+  for (const args of [
+    ['set', '--env', 'production', 'NEW=1'],
+    ['edit', 'config/production.enc.yml']
+  ]) {
+    const result = cli(args, { cwd, env: withKey })
+    t.is(result.code, 1, args.join(' '))
+    t.regex(
+      result.stderr,
+      /Production\.enc\.yml .* only in letter case/,
+      args.join(' ')
+    )
+  }
+})
+
+test('a failed init leaves no orphan files, and a second init completes a missing default layer', t => {
+  const cwd = temporaryDir('init-fail')
+  const env = freshHome()
+  fs.mkdirSync(path.join(cwd, '.sops.yaml'))
+  t.is(cli(['init'], { cwd, env }).code, 1)
+  t.false(fs.existsSync(path.join(cwd, 'config', 'default.enc.yml')))
+  fs.rmdirSync(path.join(cwd, '.sops.yaml'))
+  t.is(init(cwd, env).code, 0)
+  fs.rmSync(path.join(cwd, 'config', 'default.enc.yml'))
+  t.regex(cli(['init'], { cwd, env }).stdout, /already initialized/)
+  t.is(cli(['set', 'A=1'], { cwd, env }).code, 0)
+  t.is(cli(['get', 'A'], { cwd, env }).stdout, '1')
+})
+
+test('a path that no .sops.yaml rule covers says so', t => {
+  const cwd = temporaryDir('uncovered')
+  const env = freshHome()
+  init(cwd, env)
+  const result = cli(['edit', 'other/production.enc.yml'], { cwd, env })
+  t.regex(result.stderr, /no rule in \.sops\.yaml matches/)
 })

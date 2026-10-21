@@ -209,7 +209,7 @@ const nameOrder = layers => [
 const decryptForConfig = (
   { layers, env, keyCommand },
   missing,
-  allowKeyCommand = !DEPLOYED_ENVS.includes(env.toLowerCase())
+  allowKeyCommand = !DEPLOYED_ENVS.includes(env)
 ) => {
   try {
     return decryptDocuments(documentsOf(layers), keyCommand, {
@@ -246,7 +246,7 @@ const envStringOf = value => (value === null ? '' : String(value))
 const roundTrips = (value, text) =>
   value !== undefined && envStringOf(value) === text
 
-const typedSecret = (name, text, secret) => {
+const typedSecret = (text, secret) => {
   const parse = secret && ENV_PARSERS[secret.type]
   const value = parse ? parse(text) : undefined
   return roundTrips(value, text) ? value : text
@@ -254,7 +254,7 @@ const typedSecret = (name, text, secret) => {
 
 const typedFromEnv = (name, text, merged, secret) => {
   if (secret || !Object.hasOwn(merged, name)) {
-    return typedSecret(name, text, secret)
+    return typedSecret(text, secret)
   }
   const value = merged[name]
   return isExportable(name, value) && roundTrips(value, text) ? value : text

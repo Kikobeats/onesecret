@@ -12,7 +12,7 @@ Commit your credentials encrypted next to your code, and keep a single age key t
 - **Layers.** `config/default.yml` and `config/default.enc.yml` hold what every environment shares, and `config/production.yml` and `config/production.enc.yml` override them for production. Plain settings and secrets live side by side, and `config()` returns them as one object.
 - **Production never needs the key.** Deploy pushes the decrypted values to the platform (a Kubernetes Secret, Fly secrets). At boot, `config()` sees every value already in the environment and decrypts nothing. In `production` and `staging` it never runs `keyCommand`, so a missing secret fails the boot instead of fetching a key.
 - **Fails fast.** Secret names are stored in plaintext, so `config()` knows what must exist and names exactly what is missing.
-- **Fast.** The first `config()` call that decrypts two layers takes about 5ms, after about 9ms to load the module, and about 0.5ms after that, against roughly 30ms for spawning `sops -d` twice. When the platform already injected every secret, `config()` decrypts nothing: about 4ms for the first call at boot, then about 0.2ms.
+- **Fast.** After about 9ms to load the module, the first `config()` call takes about 5ms when it decrypts two layers, against roughly 30ms for spawning `sops -d` twice, and about 4ms when the platform already injected every secret and nothing is decrypted. Later calls take about 0.3ms.
 
 ## Install
 
@@ -86,7 +86,7 @@ A name is a secret while an encrypted file contributes to its merged value. A pl
 
 Values already in the environment always win, for plain settings too. Every other top-level value that is a string, number, boolean, or `null` is written into `process.env` as a string. `config()` returns the merged object with the YAML types kept, so `TIMEOUT: 60000` comes back as the number `60000`, while `process.env.TIMEOUT` is `"60000"`. Nested objects and lists, and names that are not valid variable names (such as `log-level`), are returned but not written into `process.env`. A value the environment provides comes back with its file's type when the string matches it, so `PORT=3000` is the number `3000` again, even for a secret, whose type is plaintext in the encrypted file. A secret must be a string, number, or boolean, since the platform injects it as a variable: a mapping or list secret missing from the environment fails with `EFORMAT`.
 
-Encrypted files accept only the standard tags `!!str`, `!!int`, `!!float`, `!!bool`, `!!null`, and `!!timestamp`, on values, so a value such as `!Passw0rd` must be quoted. A YAML error names the line and column but never the text, so a broken line cannot print a secret. Env names are lowercase letters, digits, `.`, `_`, and `-`, so a layer reads the same on every filesystem. It also throws when it finds no file at all, so an image that forgot to copy `config/`, or a process started from the wrong directory, fails at boot instead of running without its configuration.
+Encrypted files accept only the standard tags `!!str`, `!!int`, `!!float`, `!!bool`, `!!null`, and `!!timestamp`, on values, so a value such as `!Passw0rd` must be quoted. A YAML error names the line and column but never the text, so a broken line cannot print a secret. Env names are lowercase letters, digits, `.`, `_`, and `-`, without `..`, an `enc` part, or a file extension, so `NODE_ENV=Production` fails at boot instead of reading another file. Layer files must match that exact name: `Production.yml` next to a `production` layer is refused, so a layer reads the same on every filesystem. It also throws when it finds no file at all, so an image that forgot to copy `config/`, or a process started from the wrong directory, fails at boot instead of running without its configuration.
 
 The age key is read from these sources, and every key found is tried:
 
@@ -286,9 +286,10 @@ Every error is an `OnesecretError` with a `code`:
 | `ENOKEY`    | No age key was found.                                              |
 | `EKEY`      | A key was found but does not open the file, or `keyCommand` failed. |
 | `EMAC`      | The file was modified without the key.                             |
-| `EFORMAT`   | The file is not a supported SOPS file.                             |
+| `EFORMAT`   | A file cannot be read: not valid YAML or JSON, not a supported SOPS file, two files for one layer, or a secret `config()` could never find in the environment. |
 | `EVALUE`    | A value cannot be stored or turned into an environment variable.   |
 | `EDEPLOY`   | `kubectl` or `fly` failed.                                         |
+| `EUSAGE`    | A CLI command was called the wrong way, or the editor failed.      |
 
 ## Compatibility
 
