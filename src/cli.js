@@ -39,12 +39,26 @@ const shellQuote = text => `'${text.replace(/'/g, "'\\''")}'`
 
 const WAIT_FLAGS = {
   atom: '--wait',
+  bbedit: '-w',
+  clion: '--wait',
   code: '--wait',
   'code-insiders': '--wait',
   codium: '--wait',
   cursor: '--wait',
+  gedit: '--wait',
+  goland: '--wait',
+  gvim: '-f',
+  idea: '--wait',
+  kate: '--block',
   mate: '-w',
+  mvim: '-f',
+  nova: '--wait',
+  phpstorm: '--wait',
+  pycharm: '--wait',
+  rider: '--wait',
+  rubymine: '--wait',
   subl: '--wait',
+  webstorm: '--wait',
   windsurf: '--wait',
   zed: '--wait'
 }
@@ -52,7 +66,9 @@ const WAIT_FLAGS = {
 const waitingEditor = editor => {
   const [command, ...args] = editor.trim().split(/\s+/)
   const flag = WAIT_FLAGS[path.basename(command)]
-  if (!flag || args.includes(flag) || args.includes('-w')) return editor
+  if (!flag || [flag, '-w', '--wait'].some(wait => args.includes(wait))) {
+    return editor
+  }
   return `${editor} ${flag}`
 }
 
@@ -202,7 +218,7 @@ const exec = (flags, command) => {
     { allowKeyCommand: true }
   )
   const child = spawn(command[0], command.slice(1), { stdio: 'inherit', env })
-  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  for (const signal of EDIT_SIGNALS) {
     process.on(signal, () => child.kill(signal))
   }
   return new Promise((resolve, reject) => {

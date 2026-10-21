@@ -1151,16 +1151,27 @@ test('a missing secret whose name can never be a variable is refused up front', 
   })
 })
 
-test('a layer file is found only under its exact lowercase name', t => {
+test('a layer file whose name differs only in letter case is refused', t => {
   const cwd = temporaryDir('exact-case')
   fs.mkdirSync(path.join(cwd, 'config'))
   writePlain(cwd, 'default.yml', 'LOG_LEVEL: debug\n')
-  writePlain(cwd, 'Production.yml', 'LOG_LEVEL: info\n')
-  writePlain(cwd, 'production.YAML', 'LOG_LEVEL: loud\n')
-  t.deepEqual(
-    onesecret.config({ cwd, processEnv: { NODE_ENV: 'production' } }),
-    { LOG_LEVEL: 'debug' }
-  )
+  for (const name of [
+    'Production.yml',
+    'production.YAML',
+    'PRODUCTION.enc.yml'
+  ]) {
+    writePlain(cwd, name, 'LOG_LEVEL: info\n')
+    const error = t.throws(() =>
+      onesecret.config({ cwd, processEnv: { NODE_ENV: 'production' } })
+    )
+    t.is(error.code, 'EFORMAT', name)
+    t.regex(
+      error.message,
+      new RegExp(`${name.replace('.', '\\.')} .* only in letter case`),
+      name
+    )
+    fs.rmSync(path.join(cwd, 'config', name))
+  }
 })
 
 test('an empty or comment-only encrypted file is an empty layer for config', t => {
@@ -1181,7 +1192,9 @@ test('a standard tag whose value does not match it is refused', t => {
     'A: !!int abc\n',
     'A: !!bool yes\n',
     'A: !!null x\n',
-    'A: !!float abc\n'
+    'A: !!float abc\n',
+    'A: !!timestamp hello\n',
+    'A: !!timestamp 2024-13-45\n'
   ]) {
     t.is(
       t.throws(() => write.fromEditableYaml(text), undefined, text).code,

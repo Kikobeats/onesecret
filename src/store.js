@@ -31,8 +31,26 @@ const namesIn = dir => {
   }
 }
 
+const assertExactCase = (names, wanted, dir) => {
+  const lowered = new Map([...names].map(name => [name.toLowerCase(), name]))
+  for (const name of wanted) {
+    const actual = lowered.get(name.toLowerCase())
+    if (actual && actual !== name) {
+      throw new OnesecretError(
+        `${actual} in ${dir} differs from ${name} only in letter case, rename it to ${name}`,
+        'EFORMAT'
+      )
+    }
+  }
+}
+
 const findFile = (dir, layer, extensions) => {
   const names = namesIn(dir)
+  assertExactCase(
+    names,
+    extensions.map(extension => layer + extension),
+    dir
+  )
   const found = extensions
     .map(extension => layer + extension)
     .filter(name => names.has(name))
@@ -219,6 +237,7 @@ module.exports = {
   readSopsConfig,
   fileKindOf,
   findLayerFile,
+  findSopsConfig,
   findPlainFile,
   isMapping,
   layerOfFile,

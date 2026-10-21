@@ -63,7 +63,9 @@ const encryptionFor = (file, existing) => {
       : []
   if (recipients.length === 0) {
     throw new OnesecretError(
-      `no age recipient for ${file}, run "onesecret init" first`,
+      store.findSopsConfig(path.dirname(file))
+        ? `no rule in .sops.yaml matches ${file}, add one with its age recipients`
+        : `no age recipient for ${file}, run "onesecret init" first`,
       'ENOKEY'
     )
   }
@@ -240,6 +242,9 @@ const initialize = options => {
   const defaultFile = store.layerFileOrNew(dir, store.DEFAULT_LAYER)
   const existingRule = store.creationRule(defaultFile)
   if (existingRule) {
+    if (!fs.existsSync(defaultFile)) {
+      writeLayer({ file: defaultFile, existing: null }, {})
+    }
     return {
       created: false,
       recipient: existingRule.recipients.join(','),
@@ -255,9 +260,21 @@ const initialize = options => {
     age: recipient
   })
 
-  fs.writeFileSync(sopsConfigFile, sopsConfig)
-  if (!fs.existsSync(defaultFile)) {
-    writeLayer({ file: defaultFile, existing: null }, {})
+  const createsDefault = !fs.existsSync(defaultFile)
+  if (createsDefault) {
+    store.writeDocument(
+      defaultFile,
+      sops.encrypt(
+        {},
+        { recipients: [recipient], rules: withDefaultSelector({}) }
+      )
+    )
+  }
+  try {
+    fs.writeFileSync(sopsConfigFile, sopsConfig)
+  } catch (error) {
+    if (createsDefault) fs.rmSync(defaultFile, { force: true })
+    throw error
   }
   return { created: true, recipient, identity, sopsConfigFile, defaultFile }
 }
