@@ -1,0 +1,30 @@
+name: main
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      SOPS_VERSION: 3.13.3
+      SOPS_SHA256: e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install sops and age
+        run: |
+          curl -fsSL -o sops "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
+          echo "${SOPS_SHA256}  sops" | sha256sum --check
+          sudo install -m 0755 sops /usr/local/bin/sops
+          sudo apt-get update && sudo apt-get install -y age
+          sops --version && age --version
+      - run: pnpm install
+      - run: pnpm test

@@ -1,0 +1,141 @@
+'use strict'
+
+const { execSync } = require('node:child_process')
+const fs = require('node:fs')
+const os = require('node:os')
+const path = require('node:path')
+const age = require('./age')
+const { OnesecretError } = require('./error')
+
+const KEYS_FILE = path.join('sops', 'age', 'keys.txt')
+const AGE_KEY_VARIABLES = [
+  'SOPS_AGE_KEY',
+  'SOPS_AGE_KEY_FILE',
+  'SOPS_AGE_KEY_CMD'
+]
+
+const sopsKeysFile = () => {
+  if (process.env.XDG_CONFIG_HOME) { return path.join(process.env.XDG_CONFIG_HOME, KEYS_FILE) }
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', KEYS_FILE)
+  }
+  return path.join(os.homedir(), '.config', KEYS_FILE)
+}
+
+const defaultKeyFiles = () => [
+  ...new Set([sopsKeysFile(), path.join(os.homedir(), '.config', KEYS_FILE)])
+]
+
+const readKeyFile = file => {
+  try {
+    return fs.readFileSync(file, 'utf8')
+  } catch (error) {
+    throw new OnesecretError(
+      `cannot read age key file ${file}: ${error.code || error.message}`,
+      'EKEY'
+    )
+  }
+}
+
+const parseSource = (label, text) => {
+  try {
+    return age.parseIdentities(text)
+  } catch (error) {
+    throw new OnesecretError(
+      `${label} holds an invalid age key: ${error.message}`,
+      'EKEY'
+    )
+  }
+}
+
+const localIdentities = () => {
+  const identities = []
+  if (process.env.SOPS_AGE_KEY) { identities.push(...parseSource('SOPS_AGE_KEY', process.env.SOPS_AGE_KEY)) }
+  if (process.env.SOPS_AGE_KEY_FILE) {
+    identities.push(
+      ...parseSource(
+        process.env.SOPS_AGE_KEY_FILE,
+        readKeyFile(process.env.SOPS_AGE_KEY_FILE)
+      )
+    )
+  }
+  for (const file of defaultKeyFiles()) {
+    if (fs.existsSync(file)) { identities.push(...parseSource(file, readKeyFile(file))) }
+  }
+  return identities
+}
+
+const commandCache = new Map()
+
+const runKeyCommand = command => {
+  if (!commandCache.has(command)) {
+    try {
+      commandCache.set(command, { identities: readKeyCommand(command) })
+    } catch (error) {
+      commandCache.set(command, { error })
+    }
+  }
+  const { identities, error } = commandCache.get(command)
+  if (error) throw error
+  return identities
+}
+
+const readKeyCommand = command => {
+  let output
+  try {
+    output = execSync(command, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    })
+  } catch (error) {
+    const detail = error.stderr
+      ? String(error.stderr).trim().split('\n')[0]
+      : ''
+    throw new OnesecretError(
+      `key command "${command}" failed${detail ? `: ${detail}` : ''}`,
+      'EKEY'
+    )
+  }
+  const identities = parseSource(`key command "${command}"`, output)
+  if (identities.length === 0) {
+    throw new OnesecretError(
+      `key command "${command}" printed no age identity`,
+      'EKEY'
+    )
+  }
+  return identities
+}
+
+const keyCommandOf = keyCommand => process.env.SOPS_AGE_KEY_CMD || keyCommand
+
+const withIdentities = (keyCommand, use, { allowKeyCommand = true } = {}) => {
+  const local = localIdentities()
+  const command = allowKeyCommand ? keyCommandOf(keyCommand) : undefined
+  if (local.length === 0 && !command) {
+    const sources = `set SOPS_AGE_KEY or SOPS_AGE_KEY_FILE, or add it to ${sopsKeysFile()}`
+    const hint = allowKeyCommand
+      ? `${sources}, or configure a keyCommand`
+      : `${sources} (keyCommand is not run here)`
+    throw new OnesecretError(`no age key found: ${hint}`, 'ENOKEY')
+  }
+  if (local.length > 0) {
+    try {
+      return use(local)
+    } catch (error) {
+      if (error.code !== 'EKEY' || !command) throw error
+    }
+  }
+  return use(runKeyCommand(command))
+}
+
+const withoutAgeKey = env =>
+  Object.fromEntries(
+    Object.entries(env).filter(([name]) => !AGE_KEY_VARIABLES.includes(name))
+  )
+
+module.exports = {
+  localIdentities,
+  sopsKeysFile,
+  withIdentities,
+  withoutAgeKey
+}
