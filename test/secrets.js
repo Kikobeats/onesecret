@@ -1222,3 +1222,17 @@ test('a set secret whose name is not a variable name comes back typed without th
     { 'api-port': 3000, 'api-ratio': 1.5 }
   )
 })
+
+test('a case-variant file next to the exact one is refused where both can exist', t => {
+  const cwd = temporaryDir('case-sibling')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'production.yml', 'A: 1\n')
+  writePlain(cwd, 'Production.yml', 'A: 2\n')
+  const names = fs.readdirSync(path.join(cwd, 'config'))
+  if (names.length === 1) { return t.pass('case-insensitive filesystem holds one file') }
+  const error = t.throws(() =>
+    onesecret.config({ cwd, env: 'production', processEnv: {} })
+  )
+  t.is(error.code, 'EFORMAT')
+  t.regex(error.message, /Production\.yml .* only in letter case/)
+})
