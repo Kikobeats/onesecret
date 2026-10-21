@@ -290,23 +290,6 @@ Every error is an `OnesecretError` with a `code`:
 | `EVALUE`    | A value cannot be stored or turned into an environment variable.   |
 | `EDEPLOY`   | `kubectl` or `fly` failed.                                         |
 
-## Coming from miconfig
-
-onesecret loads `default` plus the `NODE_ENV` layer and merges them the same way, so the loader file becomes one line:
-
-```diff
-- const loadConfig = require('miconfig')
-- const environment = { default: loadYaml('default'), production: loadYaml('production') }
-- module.exports = loadConfig(environment)
-+ module.exports = require('onesecret').config()
-```
-
-The returned object is plain: read values directly or with destructuring (`const { TIMEOUT } = config`). There is no `config.get`, `config.has`, or `config.required`; a missing secret already fails at boot. Three differences to plan for:
-
-- A value set in the environment overrides the files.
-- Top-level scalar values are written into `process.env` as strings, so `TZ`, `DEBUG`, or `NODE_ENV` in a plain file take effect for the whole process.
-- A missing secret throws `EMISSING` instead of being `undefined`. Run unit tests with `ONESECRET_SKIP=1` to keep the old behavior: plain values load, secrets stay unset unless the environment has them.
-
 ## Compatibility
 
 onesecret reads and writes SOPS files encrypted for age X25519 recipients, in YAML or JSON, and reads every value type sops writes in those formats (`str`, `int`, `float`, `bool`, `time`). Values in encrypted files resolve the way go-yaml v3 does in sops, so `0777` is 511 and `2024-01-01` is a timestamp. Plain files are read with js-yaml instead, where `0777` is 777, YAML merge keys (`<<`) are not applied, and integers beyond 2^53 lose precision, so moving a value between a plain and an encrypted file can change it. Integers beyond 2^53 come back as `BigInt`, and timestamps as RFC 3339 strings, which are written back as strings. Rules and `path_regex` accept Go regular expression syntax such as `(?i)`, `\A`, `\z`, and `[[:lower:]]`. The test suite checks all of this against `sops` 3.13 and `age` 1.3 in both directions, including `mac_only_encrypted` and the `*_suffix` and `*_regex` rules. Like sops, it rejects truncated authentication tags and low-order age recipients.
