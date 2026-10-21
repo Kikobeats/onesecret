@@ -71,6 +71,7 @@ const readLayer = (dir, name) => {
 
 const readEncrypted = file => {
   const document = store.readDocument(file)
+  if (document === null) return null
   try {
     sops.names(document)
   } catch (error) {

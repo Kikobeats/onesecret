@@ -165,7 +165,6 @@ const editInWorkspace = (target, copy) => {
     try {
       return target.save(copy)
     } catch (error) {
-      if (retry) throw error
       console.error(
         `${saveErrorOf(error)}\nReopening the editor, save it unchanged to ${
           error instanceof OnesecretError ? 'abort' : 'try again'

@@ -967,3 +967,38 @@ test('saving a symlinked plain file writes through the link', t => {
   t.true(fs.lstatSync(link).isSymbolicLink())
   t.is(fs.readFileSync(target, 'utf8'), 'A: 1\nB: 2\n')
 })
+
+test('a save that keeps failing on the filesystem keeps the edit until it works', t => {
+  const cwd = project({ fixture: 'app' })
+  const dir = path.join(cwd, 'config')
+  const attempts = path.join(temporaryDir('attempts'), 'count')
+  const editor = fakeBinary(
+    'stubborn-editor',
+    `const fs = require('fs')
+const count = fs.existsSync(${JSON.stringify(
+      attempts
+    )}) ? Number(fs.readFileSync(${JSON.stringify(attempts)}, 'utf8')) + 1 : 1
+fs.writeFileSync(${JSON.stringify(attempts)}, String(count))
+if (count === 1) fs.appendFileSync(process.argv[2], 'NEW: important\\n')
+if (count === 3) fs.chmodSync(${JSON.stringify(dir)}, 0o755)`
+  ).file
+  fs.chmodSync(dir, 0o555)
+  const result = cli(['edit', 'config/default.enc.yml'], {
+    cwd,
+    env: { ...withKey, EDITOR: editor }
+  })
+  fs.chmodSync(dir, 0o755)
+  t.is(result.stderr.match(/cannot save, EACCES/g).length, 2)
+  t.is(result.stdout, 'config/default.enc.yml encrypted', result.stderr)
+  t.is(cli(['get', 'NEW'], { cwd, env: withKey }).stdout, 'important')
+})
+
+test('an empty encrypted file is an empty layer', t => {
+  const cwd = project({ fixture: 'app' })
+  fs.writeFileSync(path.join(cwd, 'config', 'staging.enc.yml'), '')
+  t.is(cli(['ls', '--env', 'staging'], { cwd }).code, 0)
+  t.is(
+    cli(['get', '--env', 'staging', 'S3_KEY'], { cwd, env: withKey }).stdout,
+    'AKIA-default'
+  )
+})

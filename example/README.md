@@ -34,7 +34,7 @@ This example uses onesecret from this repository, so install its dependencies at
 $ npm install
 $ cd example
 $ npm install
-$ npm start
+$ node index.js
 
 environment  development
 port         3000
@@ -50,7 +50,7 @@ session      18 characters
 With `NODE_ENV=production`, the production files are merged over the default ones. `SESSION_SECRET` comes from `default.enc.yml`, the other two secrets from `production.enc.yml`, `PORT` from `default.yml`, and `LOG_LEVEL` and `REQ_TIMEOUT` from `production.yml`:
 
 ```bash
-$ NODE_ENV=production npm start
+$ NODE_ENV=production node index.js
 
 environment  production
 port         3000
@@ -72,7 +72,7 @@ $ unset SOPS_AGE_KEY
 When every secret is already in the environment, as it is after `onesecret kubernetes` or `onesecret fly`, `config()` decrypts nothing and needs no key. The plain settings still come from `default.yml` and `production.yml`:
 
 ```bash
-$ NODE_ENV=production DATABASE_URL=postgres://injected:5432/app STRIPE_KEY=sk_live_injected SESSION_SECRET=from-platform npm start
+$ NODE_ENV=production DATABASE_URL=postgres://injected:5432/app STRIPE_KEY=sk_live_injected SESSION_SECRET=from-platform node index.js
 
 environment  production
 port         3000
@@ -88,7 +88,7 @@ session      13 characters
 Without the key, a secret the platform forgot to inject stops the app at boot and is named:
 
 ```bash
-$ NODE_ENV=production npm start
+$ NODE_ENV=production node index.js
 
 OnesecretError: onesecret: DATABASE_URL, STRIPE_KEY, SESSION_SECRET are not set and cannot be decrypted, no age key found: … (keyCommand is not run here)
 ```
