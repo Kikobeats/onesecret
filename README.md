@@ -70,16 +70,33 @@ $ git add config && git commit -m "Add config"
 `config()` returns your settings and secrets as one object:
 
 ```js
-const config = require('onesecret').config()
+const onesecret = require('onesecret')
 
+const config = onesecret.config()
+
+// Read any setting or secret by name
 config.PORT // 3000
-config.get('LOG_LEVEL', 'info') // 'info', the fallback, since LOG_LEVEL is unset
-config.has('SENTRY_DSN') // false
-config.require('DATABASE_URL') // the value, or an error naming it when unset
-const { DATABASE_URL } = config.required // the same, for several names at once
+config.DATABASE_URL // 'postgres://…'
+
+// Optional values: fall back to a default when unset
+config.get('LOG_LEVEL', 'info') // 'info'
+config.get('database.pool', 10) // a dot path reaches nested settings
+
+// Check before using something optional
+if (config.has('SENTRY_DSN')) {
+  // set up error tracking
+}
+
+// Values your app cannot run without: fail at startup, naming what is missing
+config.require('DATABASE_URL') // 'postgres://…'
+const { DATABASE_URL, PORT } = config.required // the same, for several names at once
+
+// Another environment, whatever NODE_ENV says
+const production = onesecret.config('production')
+production.DATABASE_URL // the production value
 ```
 
-The environment comes from `NODE_ENV`, or `development` when it is unset. To pick one yourself, pass its name: `config('production')`.
+The environment comes from `NODE_ENV`, or `development` when it is unset. If a required value is missing, your app stops at startup with an error such as `"DATABASE_URL" is required but not set in the "development" config`.
 
 **Alternative:** if your code already reads `process.env`, as with dotenv, call `env()` instead. It puts every value into `process.env`:
 
