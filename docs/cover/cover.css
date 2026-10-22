@@ -181,16 +181,25 @@
   content: "$ ";
   color: var(--cover-accent);
 }
-.cover__command[data-kind="prompt"] code::before {
-  content: "› ";
+.cover__copy-prompt {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid var(--cover-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cover-text);
+  font: 500 14px/1.4 var(--cover-font-mono);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
-.cover__command[data-kind="prompt"] { align-items: flex-start; }
-.cover__command[data-kind="prompt"] code {
-  font-family: var(--cover-font-body);
-  font-size: 15px;
-  line-height: 1.55;
-  white-space: normal;
-}
+.cover__copy-prompt svg { fill: none; stroke: currentColor; stroke-width: 1.8; }
+.cover__copy-prompt:hover { border-color: var(--cover-muted); }
+.cover__copy-prompt[data-copied="true"] { color: var(--cover-accent); border-color: var(--cover-accent); }
+.cover__command[data-kind="prompt"] .cover__copy-prompt { display: inline-flex; }
+.cover__command[data-kind="prompt"] code,
+.cover__command[data-kind="prompt"] .cover__copy { display: none; }
 
 .cover__copy {
   flex: none;

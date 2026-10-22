@@ -314,14 +314,28 @@ function scrambleTagline () {
   scramble.play(text)
 }
 
+const COPIED_MS = 1400
+
+async function copyText (button, text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    button.dataset.copied = 'true'
+  } catch {
+    button.dataset.copied = 'false'
+  }
+  setTimeout(() => delete button.dataset.copied, COPIED_MS)
+}
+
 function setupTabs () {
   const tabs = [...cover.querySelectorAll('[role=tab]')]
   const panel = cover.querySelector('[role=tabpanel]')
   const command = cover.querySelector('[data-command]')
   const copy = cover.querySelector('[data-copy]')
+  const copyPrompt = cover.querySelector('[data-copy-prompt]')
+  const copyPromptLabel = copyPrompt.querySelector('[data-copy-prompt-label]')
+  const promptTab = tabs.find(tab => tab.dataset.kind === 'prompt')
   const scramble = createScramble(command, COMMAND_SCRAMBLE)
   let selected = tabs.find(tab => tab.getAttribute('aria-selected') === 'true')
-  scramble.show(selected.dataset.value)
   const select = tab => {
     tabs.forEach(other => {
       const active = other === tab
@@ -331,7 +345,7 @@ function setupTabs () {
     if (tab === selected) return
     selected = tab
     panel.dataset.kind = tab.dataset.kind
-    scramble.play(tab.dataset.value)
+    if (tab.dataset.kind === 'command') scramble.play(tab.dataset.value)
   }
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => select(tab))
@@ -344,13 +358,11 @@ function setupTabs () {
       next.focus()
     })
   })
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(selected.dataset.value)
-      copy.dataset.copied = 'true'
-      setTimeout(() => delete copy.dataset.copied, 1400)
-    } catch {
-      copy.dataset.copied = 'false'
-    }
+  copy.addEventListener('click', () => copyText(copy, selected.dataset.value))
+  copyPrompt.addEventListener('click', async () => {
+    await copyText(copyPrompt, promptTab.dataset.value)
+    copyPromptLabel.textContent =
+      copyPrompt.dataset.copied === 'true' ? 'Copied' : 'Copy prompt'
+    setTimeout(() => (copyPromptLabel.textContent = 'Copy prompt'), COPIED_MS)
   })
 }
