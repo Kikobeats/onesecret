@@ -2,7 +2,7 @@
 
 const { execFileSync } = require('node:child_process')
 const yaml = require('js-yaml')
-const { loadSecrets, readLayers } = require('./secrets')
+const { loadSecrets, readLayers, requireEnvLayer } = require('./secrets')
 const { withoutAgeKey } = require('./keys')
 const { checksum, toEnv } = require('./format')
 const flyEncoding = require('./fly')
@@ -18,13 +18,10 @@ const loadForDeploy = (target, options) => {
     )
   }
   const layered = readLayers(options)
-  const envLayer = layered.layers.find(({ name }) => name === layered.env)
-  if (!envLayer.plainFile && !envLayer.encryptedFile) {
-    throw new OnesecretError(
-      `${target} found no "${layered.env}" layer in ${layered.dir}, pass --env default to deploy the default layer alone`,
-      'EVALUE'
-    )
-  }
+  requireEnvLayer(
+    layered,
+    `${target} found no "${layered.env}" layer in ${layered.dir}, pass --env default to deploy the default layer alone`
+  )
   return loadSecrets(layered)
 }
 

@@ -117,6 +117,7 @@ const cli = (args, { cwd, env = {}, input } = {}) => {
   })
   return {
     code: result.status,
+    rawStdout: result.stdout,
     stdout: result.stdout.trim(),
     stderr: result.stderr.trim()
   }

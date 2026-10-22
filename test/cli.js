@@ -4,6 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { default: test } = require('ava')
 const yaml = require('js-yaml')
+const { render } = require('../src/cli')
 const {
   FIXTURE_KEY,
   cli,
@@ -382,6 +383,102 @@ test('dotenv output reads back to the same values', t => {
   )
   const { stdout } = cli(['dotenv'], { cwd, env })
   t.deepEqual({ ...require('node:util').parseEnv(stdout) }, values)
+})
+
+test('dotenv --json prints the secrets as one JSON object, even values dotenv refuses', t => {
+  const cwd = temporaryDir('dotenv-json')
+  const env = freshHome()
+  init(cwd, env)
+  const values = {
+    HASH: 'abc#123',
+    PEM: '-----BEGIN KEY-----\nMIIB\n-----END KEY-----',
+    UNQUOTABLE: "'ends with backslash\\"
+  }
+  cli(
+    [
+      'set',
+      ...Object.entries(values).map(([name, value]) => `${name}=${value}`)
+    ],
+    { cwd, env }
+  )
+  t.regex(cli(['dotenv'], { cwd, env }).stderr, /UNQUOTABLE/)
+  const result = cli(['dotenv', '--json'], { cwd, env })
+  t.is(result.code, 0)
+  t.deepEqual(JSON.parse(result.stdout), values)
+})
+
+test('get prints the exact value when piped, so stdin readers store no newline', t => {
+  const cwd = temporaryDir('get-exact')
+  const env = freshHome()
+  init(cwd, env)
+  cli(['set', 'PEM=line1\nline2', 'EMPTY='], { cwd, env })
+  t.is(cli(['get', 'PEM'], { cwd, env }).rawStdout, 'line1\nline2')
+  t.is(cli(['get', 'EMPTY'], { cwd, env }).rawStdout, '')
+  t.is(cli(['ls'], { cwd, env }).rawStdout, 'PEM\nEMPTY\n')
+})
+
+test('dotenv --json writes numbers as strings and refuses what dotenv refuses', t => {
+  const cwd = temporaryDir('dotenv-json-types')
+  const env = freshHome()
+  init(cwd, env)
+  fs.writeFileSync(path.join(cwd, 'config', 'default.yml'), 'PLAIN: 1\n')
+  cli(['set', 'PORT=3000', 'ON=true'], { cwd, env })
+  t.deepEqual(JSON.parse(cli(['dotenv', '--json'], { cwd, env }).stdout), {
+    PORT: '3000',
+    ON: 'true'
+  })
+})
+
+test('dotenv and ls refuse an explicit --env with no layer, so a typo never pushes the default layer', t => {
+  const cwd = temporaryDir('env-typo')
+  const env = freshHome()
+  init(cwd, env)
+  cli(['set', 'A=1'], { cwd, env })
+  cli(['set', '-e', 'production', 'B=2'], { cwd, env })
+  for (const args of [['dotenv', '--json'], ['dotenv'], ['ls']]) {
+    const typo = cli([...args, '--env', 'prodution'], { cwd, env })
+    t.is(typo.code, 1)
+    t.regex(typo.stderr, /found no "prodution" layer/)
+    t.is(typo.stdout, '')
+    t.is(cli([...args, '--env', 'production'], { cwd, env }).code, 0)
+  }
+  t.is(cli(['ls'], { cwd, env: { ...env, NODE_ENV: 'staging' } }).stdout, 'A')
+})
+
+test('--json is refused outside dotenv', t => {
+  const cwd = temporaryDir('json-elsewhere')
+  const env = freshHome()
+  init(cwd, env)
+  cli(['set', 'A=1'], { cwd, env })
+  for (const args of [
+    ['ls', '--json'],
+    ['get', 'A', '--json']
+  ]) {
+    const result = cli(args, { cwd, env })
+    t.is(result.code, 1)
+    t.regex(result.stderr, /--json only works with dotenv/)
+  }
+})
+
+test('get prints numbers, null, and nested values without a newline when piped', t => {
+  const cwd = temporaryDir('get-exact-types')
+  const env = freshHome()
+  init(cwd, env)
+  fs.writeFileSync(
+    path.join(cwd, 'config', 'default.yml'),
+    'PORT: 3000\nNOTHING: null\nNESTED:\n  a: 1\n'
+  )
+  t.is(cli(['get', 'PORT'], { cwd, env }).rawStdout, '3000')
+  t.is(cli(['get', 'NOTHING'], { cwd, env }).rawStdout, '')
+  t.is(cli(['get', 'NESTED'], { cwd, env }).rawStdout, 'a: 1')
+})
+
+test('render ends exact output with a newline only on a terminal', t => {
+  t.is(render({ stdout: 'value', exact: true }, false), 'value')
+  t.is(render({ stdout: 'value', exact: true }, true), 'value\n')
+  t.is(render({ stdout: 'a\nb' }, false), 'a\nb\n')
+  t.is(render({ stdout: '' }, true), '')
+  t.is(render({ exitCode: 3 }, false), '')
 })
 
 test('init never touches an existing .sops.yaml', t => {

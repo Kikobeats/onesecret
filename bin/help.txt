@@ -11,7 +11,9 @@ Commands
   rekey                     Encrypt a layer again with a new data key, for its recipients or a .sops.yaml rule
   ls                        List secret names (no key needed)
   get NAME                  Print one value, from a plain or an encrypted layer
+                            (with no trailing newline when piped)
   dotenv                    Print every decrypted secret as NAME=value
+                            (--json prints them as one JSON object)
   exec -- <command>         Run a command with the config and secrets in its environment
                             (--env also sets its NODE_ENV)
   kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
@@ -26,6 +28,7 @@ Options
   --namespace, -n  Kubernetes namespace
   --context        kubectl context
   --no-stage       fly: apply the secrets now instead of on the next deploy
+  --json           dotenv: print a JSON object instead of NAME=value lines
 
 Examples
   $ onesecret init

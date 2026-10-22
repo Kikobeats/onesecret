@@ -126,6 +126,16 @@ Keep the `config/` directory in your image: `config()` reads the plain settings 
 
 `kubernetes` and `fly` require `--env`, and that layer must have a plain or an encrypted file, so a typo such as `--env prodution` or a wrong `--dir` fails instead of pushing the wrong secrets. To deploy the default layer alone, pass `--env default`.
 
+Kubernetes and Fly.io have their own command. Every other provider is fed with three primitives:
+
+- `onesecret dotenv --json` prints every secret as one JSON object, for APIs and CLIs that take JSON.
+- `onesecret ls` prints the secret names, and `onesecret get NAME` prints one value. When piped, `get` prints the exact bytes with no trailing newline.
+- `onesecret exec -- <command>` runs a command with the secrets in its environment.
+
+Always pass `--env` to them in a deploy script: without it they read `NODE_ENV`, then `development`. With `--env`, `dotenv` and `ls` refuse a layer that has no file, so a typo such as `--env prodution` fails instead of pushing the default layer.
+
+Each recipe below decrypts once into a `secrets` variable and pushes only when that worked, so a missing key sends nothing instead of empty values. In a script, start with `set -euo pipefail`, so a failed decrypt also stops the deploy that follows.
+
 ### Kubernetes
 
 Write the secrets into a Secret before `helm upgrade`, then pass the printed checksum to the chart so pods roll when a value changes:
@@ -167,6 +177,174 @@ Secrets are staged and applied by the next deploy. Pass `--no-stage` to restart 
 - `fly secrets import` adds and updates but never removes, so when a secret moves to a plain file, run `fly secrets unset NAME`, or the old secret keeps overriding the file.
 - Every value is encoded so that `fly secrets import` reads it back unchanged, including `#`, quotes, and multi-line values such as PEM keys. onesecret checks this against a port of flyctl's own parser before sending anything, and refuses the rare value that cannot round-trip (for example a line over 64 KiB, which flyctl drops).
 
+### Vercel
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json)
+$ for name in $(printf %s "$secrets" | jq -r 'keys[]'); do
+    printf %s "$secrets" | jq -j --arg name "$name" '.[$name]' |
+      vercel env add "$name" --environment production --sensitive --force --yes
+  done
+$ vercel deploy --prod
+```
+
+- New values apply only to new deployments.
+- `vercel env add` adds and overwrites but never removes: run `vercel env rm NAME --environment production --yes` when a secret moves to a plain file. It cannot read an empty value from stdin.
+- File tracing cannot see the `config/` directory, so include it in the function bundle, or `config()` fails at boot. In `vercel.json`: `{ "functions": { "api/**/*.js": { "includeFiles": "config/**" } } }`. With Next.js, use `outputFileTracingIncludes: { '/*': ['./config/**/*'] }` in `next.config.js`.
+
+### Netlify
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json)
+$ for name in $(printf %s "$secrets" | jq -r 'keys[]'); do
+    netlify env:set --context production --secret --force -- "$name" "$(printf %s "$secrets" | jq -r --arg name "$name" '.[$name]')"
+  done
+$ netlify deploy --prod
+```
+
+- `env:set` takes the value as an argument, so `$(...)` drops a trailing newline that belongs to the value. Keep the `--` and put the flags before it: a PEM key starts with `-`.
+- Do not use `netlify env:import`: it writes every variable to all contexts without the secret flag, and prints the values.
+- `env:set` adds and updates but never removes: run `netlify env:unset NAME --context production`. New values apply to the next deploy.
+- Include the config files in the functions bundle, in `netlify.toml`: `[functions]` with `included_files = ["config/**"]`.
+
+### Cloudflare Workers
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json) &&
+    printf %s "$secrets" | npx wrangler secret bulk --name my-worker
+```
+
+- `wrangler secret bulk` creates and deploys a new version of the Worker right away. It adds and updates but never removes: run `wrangler secret delete NAME`.
+- A Worker has no project directory at runtime. Attach the config files as modules and point `config()` at them:
+
+```toml
+# wrangler.toml
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+base_dir = "."
+find_additional_modules = true
+rules = [{ type = "Text", globs = ["config/**/*.yml"], fallthrough = true }]
+```
+
+```js
+const config = require('onesecret').config({ env: 'production', cwd: '/bundle' })
+```
+
+- `package.json` is not in the bundle, so pass `dir` and `keyCommand` in code. The Workers runtime reports Node.js 22: onesecret ran there in `wrangler dev`, but it is below the supported `engines` range.
+
+### Railway
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json)
+$ for name in $(printf %s "$secrets" | jq -r 'keys[]'); do
+    printf %s "$secrets" | jq -j --arg name "$name" '.[$name]' |
+      railway variable set "$name" --stdin --service api --environment production --skip-deploys
+  done
+$ railway redeploy --service api --environment production --yes
+```
+
+- `--stdin` strips trailing newlines from the value and refuses an empty one.
+- Railway reads `${{ NAME }}` in a value as a reference to another variable.
+- Do not paste `onesecret dotenv` into `railway variable edit`: it splits multi-line values, keeps backticks as part of the value, and deletes every variable missing from the file.
+- `variable set` adds and updates but never removes: run `railway variable delete NAME`.
+
+### Render
+
+The Render CLI cannot set variables on an existing service, so the loop calls the API, one key at a time:
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json)
+$ for name in $(printf %s "$secrets" | jq -r 'keys[]'); do
+    printf %s "$secrets" | jq --arg name "$name" '{value: .[$name]}' |
+      curl -fsS -o /dev/null -X PUT "https://api.render.com/v1/services/$RENDER_SERVICE_ID/env-vars/$name" \
+        -H "Authorization: Bearer $RENDER_API_KEY" -H 'Content-Type: application/json' --data-binary @-
+  done
+$ render deploys create "$RENDER_SERVICE_ID" --wait --confirm
+```
+
+- Each call adds or updates one variable set on the service, not in a linked environment group.
+- Do not use the bulk `PUT /env-vars` endpoint: it replaces every variable, removing the plain ones set in the dashboard.
+
+### Heroku
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json) &&
+    printf %s "$secrets" | curl -fsS -o /dev/null -X PATCH "https://api.heroku.com/apps/my-app/config-vars" \
+      -H 'Accept: application/vnd.heroku+json; version=3' -H "Authorization: Bearer $HEROKU_API_KEY" \
+      -H 'Content-Type: application/json' --data-binary @-
+```
+
+- One request sets every secret, so the app restarts once with a new release. `-o /dev/null` keeps the response, which lists every config var, out of the logs.
+- It adds and updates but never removes: run `heroku config:unset NAME -a my-app`. All config vars together are limited to 64 KB.
+- `heroku config:set NAME="$(...)"` works too, but puts each value in the process list, prints the values, drops trailing newlines, and restarts the app once per secret.
+
+### AWS
+
+On ECS, keep every secret of an environment in one Secrets Manager secret as JSON, and reference each key from the task definition:
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json) &&
+    printf %s "$secrets" | aws secretsmanager put-secret-value --secret-id my-app/production --secret-string file:///dev/stdin
+$ arn=$(aws secretsmanager describe-secret --secret-id my-app/production --query ARN --output text)
+$ npx onesecret ls --env production | jq -Rn --arg arn "$arn" '[inputs | {name: ., valueFrom: "\($arn):\(.)::"}]'
+```
+
+Put the printed list in `containerDefinitions[].secrets`, register the task definition, then roll the service, since tasks read secrets only when they start:
+
+```bash
+$ aws ecs update-service --cluster prod --service my-app --force-new-deployment
+```
+
+- The first time, run `create-secret --name my-app/production` in place of `put-secret-value --secret-id my-app/production`.
+- `put-secret-value` replaces the whole JSON, so a removed secret disappears. Generate the task definition list again whenever the names change. The task execution role needs `secretsmanager:GetSecretValue`, and the JSON is limited to 64 KB.
+- Do not use the task definition's `environmentFiles`: ECS keeps quotes as part of the value and cannot read multi-line values.
+- On Lambda, `secrets=$(npx onesecret dotenv --env production --json) && printf %s "$secrets" | jq '{Variables: .}' | aws lambda update-function-configuration --function-name my-fn --environment file:///dev/stdin` sets them, but it replaces every variable of the function, and all of them together are limited to 4 KB. Ship `config/` inside the deployment package.
+
+### Google Cloud Run
+
+Keep each secret in Secret Manager and mount them all as variables. Secret names are shared by the whole Google Cloud project, so prefix them with the app and the environment:
+
+```bash
+$ secrets=$(npx onesecret dotenv --env production --json)
+$ for name in $(printf %s "$secrets" | jq -r 'keys[]'); do
+    id="my-app-production-$name"
+    gcloud secrets describe "$id" >/dev/null 2>&1 || gcloud secrets create "$id" --replication-policy=automatic
+    printf %s "$secrets" | jq -j --arg name "$name" '.[$name]' | gcloud secrets versions add "$id" --data-file=-
+  done
+$ gcloud run deploy my-app --source . --set-secrets="$(npx onesecret ls --env production | sed 's/.*/&=my-app-production-&:latest/' | paste -sd, -)"
+```
+
+- `--set-secrets` replaces the secrets of the previous revision. Values are read when an instance starts, so deploy after every push. The service account needs `roles/secretmanager.secretAccessor`.
+- `--env-vars-file` stores values as plain configuration instead. If you use it, pass `onesecret dotenv --json > env.json`, never a `.env` file: gcloud reads those with python-dotenv, which expands `${NAME}` and breaks backtick quoting.
+- With `--source`, keep `config/` out of `.gcloudignore`.
+
+### Docker
+
+```bash
+$ npx onesecret exec --env production -- docker run $(npx onesecret ls --env production | sed 's/^/-e /') my-image
+```
+
+`-e NAME` without a value copies `NAME` from the environment `onesecret exec` builds. The unquoted `$(...)` splits into one `-e NAME` pair per secret, which is safe because secret names are valid variable names. With Compose, list the names without values under `environment:`, such as `- DATABASE_URL`, then run `npx onesecret exec --env production -- docker compose up -d`.
+
+- Do not pass `onesecret dotenv` output to `docker run --env-file` or Compose `env_file`. Docker keeps quotes as part of the value and fails on multi-line values, and Compose expands `$NAME` and rejects backticks.
+- Copy the config files into the image, with `COPY config ./config` on a `node:24` base image.
+
+### GitHub Actions
+
+A job that deploys needs a single secret: the age key. onesecret decrypts the rest in the job.
+
+```bash
+$ printf %s "$SOPS_AGE_KEY" | gh secret set SOPS_AGE_KEY --env production
+```
+
+```yaml
+- run: npx onesecret kubernetes --env production --name api-env
+  env:
+    SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+```
+
+Do not import `onesecret dotenv` with `gh secret set --env-file`: gh parses it with godotenv, which expands `$NAME` and rejects backticks.
+
 ### Anywhere else
 
 ```bash
@@ -174,6 +352,8 @@ $ npx onesecret dotenv --env production > .env.production
 ```
 
 Values are quoted only when needed, and every line is checked against both Node.js's own `.env` parser and the `dotenv` package before it is printed, so `#`, spaces, quotes, backslashes, and newlines read back unchanged with `node --env-file` or `dotenv`. A value that no quoting can carry through both, such as one starting with `'` and ending with `\`, is refused instead of corrupted.
+
+Other `.env` parsers differ, as the providers above show. When a tool takes JSON, prefer `onesecret dotenv --json`, which carries every value unchanged, as a string.
 
 ## How it works
 
@@ -266,7 +446,9 @@ Commands
   rekey                     Encrypt a layer again with a new data key, for its recipients or a .sops.yaml rule
   ls                        List secret names (no key needed)
   get NAME                  Print one value, from a plain or an encrypted layer
+                            (with no trailing newline when piped)
   dotenv                    Print every decrypted secret as NAME=value
+                            (--json prints them as one JSON object)
   exec -- <command>         Run a command with the config and secrets in its environment
                             (--env also sets its NODE_ENV)
   kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
@@ -281,6 +463,7 @@ Options
   --namespace, -n  Kubernetes namespace
   --context        kubectl context
   --no-stage       fly: apply the secrets now instead of on the next deploy
+  --json           dotenv: print a JSON object instead of NAME=value lines
 
 Examples
   $ onesecret init
@@ -307,7 +490,7 @@ Examples
 
 ### get
 
-`get` reads a plain value without the key, and prints a nested value as YAML.
+`get` reads a plain value without the key, and prints a nested value as YAML. On a terminal it ends the value with a newline; piped, it prints the value alone, so `onesecret get NAME | some-cli --stdin` stores exactly the value. A `while read` loop over it needs `|| [ -n "$line" ]` to keep the last line.
 
 ## API
 

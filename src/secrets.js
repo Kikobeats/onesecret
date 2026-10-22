@@ -179,6 +179,16 @@ const pick = (values, names) => {
 
 const names = input => secretNamesOf(readLayers(input).layers)
 
+const namesOf = layered => secretNamesOf(layered.layers)
+
+const requireEnvLayer = (layered, message) => {
+  const envLayer = layered.layers.find(({ name }) => name === layered.env)
+  if (!envLayer.plainFile && !envLayer.encryptedFile) {
+    throw new OnesecretError(message, 'EVALUE')
+  }
+  return layered
+}
+
 const loadLayers = ({ layers, keyCommand }) =>
   mergeLayers(layers, decryptDocuments(documentsOf(layers), keyCommand))
 
@@ -326,6 +336,8 @@ module.exports = {
   load,
   loadSecrets,
   names,
+  namesOf,
+  requireEnvLayer,
   readLayers,
   resolveOptions
 }
