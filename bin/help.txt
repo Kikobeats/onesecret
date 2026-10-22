@@ -16,18 +16,13 @@ Commands
                             (--json prints them as one JSON object)
   exec -- <command>         Run a command with the config and secrets in its environment
                             (--env also sets its NODE_ENV)
-  kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
-  fly --app <app>           Import the secrets into a Fly app, print their checksum
 
 Options
   --env, -e        Layer to read on top of "default" (defaults to NODE_ENV, then "development").
                    Write commands (set, unset, edit, rekey) write this layer, "default" when omitted.
-                   kubernetes and fly require it, and the layer file must exist ("default" deploys the base alone).
+                   Passed to dotenv or ls, the layer file must exist.
   --dir            Directory holding the config files (defaults to "config")
   --cwd            Project root, where package.json and the config directory are (defaults to the current directory)
-  --namespace, -n  Kubernetes namespace
-  --context        kubectl context
-  --no-stage       fly: apply the secrets now instead of on the next deploy
   --json           dotenv: print a JSON object instead of NAME=value lines
 
 Examples
@@ -36,5 +31,4 @@ Examples
   $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
   $ onesecret edit config/production.enc.yml
   $ onesecret exec -- node server.js
-  $ onesecret kubernetes --env production --name api-env --namespace api
-  $ onesecret fly --env production --app my-app
+  $ onesecret dotenv --env production --json

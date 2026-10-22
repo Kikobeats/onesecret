@@ -83,7 +83,7 @@
           "Layered plain settings and encrypted secrets merged into one object",
           "Production boots without the key when the platform injects the secrets",
           "Fails at boot naming every missing secret",
-          "Deploys secrets to Kubernetes, Fly.io, or a dotenv file"
+          "Deploy recipes for Kubernetes, Fly.io, Vercel, Netlify, Cloudflare Workers, AWS, Google Cloud Run, and more"
         ],
         "offers": {
           "@type": "Offer",
@@ -126,7 +126,7 @@
     <ul>
       <li>One age key decrypts every environment.</li>
       <li>Plain settings and secrets live side by side in layers, and config() returns them as one object.</li>
-      <li>Production never needs the key: deploys push the decrypted values to Kubernetes or Fly.io.</li>
+      <li>Production never needs the key: deploys push the decrypted values to the platform, such as Kubernetes, Fly.io, Vercel, or AWS.</li>
       <li>It fails at boot and names exactly which secret is missing.</li>
     </ul>
     <p><a href="https://www.npmjs.com/package/onesecret">Install onesecret from npm</a> or <a href="https://github.com/Kikobeats/onesecret">view the source on GitHub</a>.</p>

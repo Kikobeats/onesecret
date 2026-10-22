@@ -68,7 +68,7 @@ A production server does not have the key. Drop it from your shell to act like o
 $ unset SOPS_AGE_KEY
 ```
 
-When every secret is already in the environment, as it is after `onesecret kubernetes` or `onesecret fly`, `config()` decrypts nothing and needs no key. The plain settings still come from `default.yml` and `production.yml`:
+When every secret is already in the environment, as it is once a deploy pushed them to the platform, `config()` decrypts nothing and needs no key. The plain settings still come from `default.yml` and `production.yml`:
 
 ```bash
 $ NODE_ENV=production DATABASE_URL=postgres://injected:5432/app STRIPE_KEY=sk_live_injected SESSION_SECRET=from-platform node index.js
@@ -106,14 +106,13 @@ $ npx onesecret dotenv > .env                    # the secrets, for tools that r
 $ npx onesecret exec -- node index.js            # settings and secrets reach the child, the key does not
 ```
 
-To deploy, push the secrets to the platform before the app starts. The plain settings ship in the image with `config/`:
+To deploy, push the secrets to the platform before the app starts. The plain settings ship in the image with `config/`. `dotenv --json` prints them as one JSON object, which most platforms take:
 
 ```bash
-$ npx onesecret kubernetes --env production --name example-env --namespace example
-$ npx onesecret fly --env production --app example
+$ npx onesecret dotenv --env production --json
 ```
 
-See the [main README](../README.md#deploy) for the Kubernetes checksum annotation and the Fly details.
+See the [main README](../README.md#deploy) for the recipe of each platform: Kubernetes, Fly.io, Vercel, Netlify, Cloudflare Workers, Railway, Render, AWS, Google Cloud Run, Docker, and GitHub Actions.
 
 ## The files are plain sops
 

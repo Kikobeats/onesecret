@@ -124,24 +124,27 @@ Deploys push only the secrets, with their merged values. Plain settings ship ins
 
 Keep the `config/` directory in your image: `config()` reads the plain settings from it and the secret names to check that the platform injected every secret, and fails at boot if one is missing.
 
-`kubernetes` and `fly` require `--env`, and that layer must have a plain or an encrypted file, so a typo such as `--env prodution` or a wrong `--dir` fails instead of pushing the wrong secrets. To deploy the default layer alone, pass `--env default`.
-
-Kubernetes and Fly.io have their own command. Every other provider is fed with three primitives:
+Every provider is fed with three primitives:
 
 - `onesecret dotenv --json` prints every secret as one JSON object, for APIs and CLIs that take JSON.
 - `onesecret ls` prints the secret names, and `onesecret get NAME` prints one value. When piped, `get` prints the exact bytes with no trailing newline.
 - `onesecret exec -- <command>` runs a command with the secrets in its environment.
 
-Always pass `--env` to them in a deploy script: without it they read `NODE_ENV`, then `development`. With `--env`, `dotenv` and `ls` refuse a layer that has no file, so a typo such as `--env prodution` fails instead of pushing the default layer.
+Always pass `--env` to them in a deploy script: without it they read `NODE_ENV`, then `development`. With `--env`, `dotenv` and `ls` refuse a layer that has no plain or encrypted file, so a typo such as `--env prodution` or a wrong `--dir` fails instead of pushing the default layer. To push the default layer alone, pass `--env default`.
 
 Each recipe below decrypts once into a `secrets` variable and pushes only when that worked, so a missing key sends nothing instead of empty values. In a script, start with `set -euo pipefail`, so a failed decrypt also stops the deploy that follows.
 
 ### Kubernetes
 
-Write the secrets into a Secret before `helm upgrade`, then pass the printed checksum to the chart so pods roll when a value changes:
+Apply the secrets as a Secret before `helm upgrade`, then pass their checksum to the chart so pods roll when a value changes:
 
 ```bash
-$ checksum=$(npx onesecret kubernetes --env production --name api-env --namespace api --context prod)
+$ secrets=$(npx onesecret dotenv --env production --json) &&
+    printf %s "$secrets" | jq '{apiVersion: "v1", kind: "Secret", type: "Opaque",
+        metadata: {name: "api-env", labels: {"app.kubernetes.io/managed-by": "onesecret"}},
+        data: map_values(@base64)}' |
+      kubectl apply --namespace api --context prod -f -
+$ checksum=$(printf %s "$secrets" | jq -S -c . | shasum -a 256 | cut -d' ' -f1)
 $ helm upgrade api ./chart --set-string envSecretChecksum=$checksum
 ```
 
@@ -164,18 +167,23 @@ Apply the Secret before every install, including one-off installs such as a cana
 
 The checksum annotation matters too: when only a secret value changes, nothing else in the pod template changes, so without it Kubernetes keeps the old pods running with the old values.
 
+- `kubectl apply` replaces the whole `data`, so a secret that moved to a plain file disappears from the Secret.
+- Do not use `kubectl create secret --from-env-file` with `onesecret dotenv`: kubectl keeps quotes as part of the value and cannot read multi-line values.
+
 ### Fly.io
 
 ```bash
-$ npx onesecret fly --env production --app my-app
+$ secrets=$(npx onesecret dotenv --env production --json) &&
+    printf %s "$secrets" | jq -j 'to_entries[] | "\(.key)=\(.value)\u0000"' | xargs -0 fly secrets set --stage --app my-app
 $ fly deploy --app my-app
 ```
 
-Secrets are staged and applied by the next deploy. Pass `--no-stage` to restart the machines with them right away.
+`fly secrets set` splits each argument at the first `=` and keeps the rest as it is, so `#`, quotes, and multi-line values such as PEM keys arrive unchanged. `--stage` applies them with the next deploy; drop it to restart the machines with them right away.
 
+- The values are arguments of `fly` while it runs, so they are visible in the process list of that machine.
+- flyctl reads a value of exactly `-` from stdin instead.
 - Keep secret names out of the `[env]` section of `fly.toml`, since those values would be stored as plain configuration.
-- `fly secrets import` adds and updates but never removes, so when a secret moves to a plain file, run `fly secrets unset NAME`, or the old secret keeps overriding the file.
-- Every value is encoded so that `fly secrets import` reads it back unchanged, including `#`, quotes, and multi-line values such as PEM keys. onesecret checks this against a port of flyctl's own parser before sending anything, and refuses the rare value that cannot round-trip (for example a line over 64 KiB, which flyctl drops).
+- `fly secrets set` adds and updates but never removes, so when a secret moves to a plain file, run `fly secrets unset NAME`, or the old secret keeps overriding the file.
 
 ### Vercel
 
@@ -265,19 +273,6 @@ $ render deploys create "$RENDER_SERVICE_ID" --wait --confirm
 - Each call adds or updates one variable set on the service, not in a linked environment group.
 - Do not use the bulk `PUT /env-vars` endpoint: it replaces every variable, removing the plain ones set in the dashboard.
 
-### Heroku
-
-```bash
-$ secrets=$(npx onesecret dotenv --env production --json) &&
-    printf %s "$secrets" | curl -fsS -o /dev/null -X PATCH "https://api.heroku.com/apps/my-app/config-vars" \
-      -H 'Accept: application/vnd.heroku+json; version=3' -H "Authorization: Bearer $HEROKU_API_KEY" \
-      -H 'Content-Type: application/json' --data-binary @-
-```
-
-- One request sets every secret, so the app restarts once with a new release. `-o /dev/null` keeps the response, which lists every config var, out of the logs.
-- It adds and updates but never removes: run `heroku config:unset NAME -a my-app`. All config vars together are limited to 64 KB.
-- `heroku config:set NAME="$(...)"` works too, but puts each value in the process list, prints the values, drops trailing newlines, and restarts the app once per secret.
-
 ### AWS
 
 On ECS, keep every secret of an environment in one Secrets Manager secret as JSON, and reference each key from the task definition:
@@ -338,7 +333,7 @@ $ printf %s "$SOPS_AGE_KEY" | gh secret set SOPS_AGE_KEY --env production
 ```
 
 ```yaml
-- run: npx onesecret kubernetes --env production --name api-env
+- run: ./deploy.sh
   env:
     SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 ```
@@ -402,13 +397,13 @@ With `keyCommand`, nobody keeps the key on disk. It is a command that prints the
 }
 ```
 
-It runs at most once per process, whether it succeeds or fails, and `config()` never runs it in `production` or `staging`. `load()` and the CLI (`exec`, `get`, `dotenv`, deploys) do run it in any env, since you call them on purpose.
+It runs at most once per process, whether it succeeds or fails, and `config()` never runs it in `production` or `staging`. `load()` and the CLI (`exec`, `get`, `dotenv`) do run it in any env, since you call them on purpose.
 
 `keyCommand` comes from the project's `package.json`, so it has the same trust model as an npm script: only run onesecret in repositories you trust.
 
 ### The key never reaches your app
 
-`exec`, `kubernetes`, and `fly` remove `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` from the environment they pass on, so the command you run gets the secrets but not the key. The keys file stays readable on disk to anything running as you, and `edit` and `keyCommand` run with your full environment.
+`exec` removes `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` from the environment it passes on, so the command you run gets the secrets but not the key. The keys file stays readable on disk to anything running as you, and `edit` and `keyCommand` run with your full environment.
 
 ## Separate keys per person
 
@@ -451,18 +446,13 @@ Commands
                             (--json prints them as one JSON object)
   exec -- <command>         Run a command with the config and secrets in its environment
                             (--env also sets its NODE_ENV)
-  kubernetes --name <name>  Apply the secrets as a Kubernetes Secret, print its checksum
-  fly --app <app>           Import the secrets into a Fly app, print their checksum
 
 Options
   --env, -e        Layer to read on top of "default" (defaults to NODE_ENV, then "development").
                    Write commands (set, unset, edit, rekey) write this layer, "default" when omitted.
-                   kubernetes and fly require it, and the layer file must exist ("default" deploys the base alone).
+                   Passed to dotenv or ls, the layer file must exist.
   --dir            Directory holding the config files (defaults to "config")
   --cwd            Project root, where package.json and the config directory are (defaults to the current directory)
-  --namespace, -n  Kubernetes namespace
-  --context        kubectl context
-  --no-stage       fly: apply the secrets now instead of on the next deploy
   --json           dotenv: print a JSON object instead of NAME=value lines
 
 Examples
@@ -471,8 +461,7 @@ Examples
   $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
   $ onesecret edit config/production.enc.yml
   $ onesecret exec -- node server.js
-  $ onesecret kubernetes --env production --name api-env --namespace api
-  $ onesecret fly --env production --app my-app
+  $ onesecret dotenv --env production --json
 ```
 
 ### set
@@ -494,7 +483,7 @@ Examples
 
 ## API
 
-`config`, `load`, and `names` take the env name as a string, or these options, which `kubernetes` and `fly` take too:
+`config`, `load`, and `names` take the env name as a string, or these options:
 
 | Option       | Default                            | Description                                           |
 | ------------ | ---------------------------------- | ----------------------------------------------------- |
@@ -523,17 +512,9 @@ Returns every layer merged and decrypted, ignoring `process.env`. Values keep th
 
 Returns the secret names, without needing the key.
 
-### kubernetes({ name, namespace, context, args, kubectl, ...options })
-
-Applies the secrets as an `Opaque` Secret with `kubectl apply`. Returns `{ checksum, output }`.
-
-### fly({ app, stage = true, flyctl, ...options })
-
-Imports the secrets with `fly secrets import`. Returns `{ checksum, output }`.
-
 ### toEnv(secrets), toDotenv(secrets), checksum(secrets), withoutAgeKey(env)
 
-Helpers used by the commands above: turn secrets into environment strings, render them as dotenv, hash them in an order-independent way, and drop the age key variables from an environment.
+Helpers: turn secrets into environment strings, render them as dotenv, hash them in an order-independent way, and drop the age key variables from an environment.
 
 ### Errors
 
@@ -547,7 +528,6 @@ Every error is an `OnesecretError` with a `code`:
 | `EMAC`      | The file was modified without the key.                             |
 | `EFORMAT`   | A file cannot be read: not valid YAML or JSON, not a supported SOPS file, two files for one layer, or a secret `config()` could never find in the environment. |
 | `EVALUE`    | A value cannot be stored or turned into an environment variable.   |
-| `EDEPLOY`   | `kubectl` or `fly` failed.                                         |
 | `EUSAGE`    | A CLI command was called the wrong way, or the editor failed.      |
 
 ## Reference

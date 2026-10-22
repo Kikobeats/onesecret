@@ -10,7 +10,6 @@ const {
   cli,
   fakeBinary,
   project,
-  recordingBinary,
   temporaryDir
 } = require('./helpers')
 
@@ -221,44 +220,6 @@ test('exec forwards the exit code and reports a missing command', t => {
   )
 })
 
-test('kubernetes prints the checksum on stdout and kubectl output on stderr', t => {
-  const cwd = project({ fixture: 'app' })
-  const kubectl = recordingBinary('kubectl', {
-    stdout: 'secret/api-env created\n'
-  })
-  const result = cli(
-    ['kubernetes', '--env', 'production', '--name', 'api-env', '-n', 'api'],
-    {
-      cwd,
-      env: {
-        ...withKey,
-        PATH: `${kubectl.dir}${path.delimiter}${process.env.PATH}`
-      }
-    }
-  )
-  t.is(result.code, 0, result.stderr)
-  t.regex(result.stdout, /^[a-f0-9]{64}$/)
-  t.is(result.stderr, 'secret/api-env created')
-  t.is(yaml.load(kubectl.call().input).metadata.namespace, 'api')
-})
-
-test('fly honors --no-stage', t => {
-  const cwd = project({ fixture: 'app' })
-  const fly = recordingBinary('fly')
-  const result = cli(
-    ['fly', '--env', 'production', '--app', 'api', '--no-stage'],
-    {
-      cwd,
-      env: {
-        ...withKey,
-        PATH: `${fly.dir}${path.delimiter}${process.env.PATH}`
-      }
-    }
-  )
-  t.is(result.code, 0, result.stderr)
-  t.deepEqual(fly.call().args, ['secrets', 'import', '--app', 'api'])
-})
-
 test('help, version, and usage errors', t => {
   t.regex(cli(['--help']).stdout, /^Usage/)
   t.regex(cli([]).stdout, /^Usage/)
@@ -443,6 +404,23 @@ test('dotenv and ls refuse an explicit --env with no layer, so a typo never push
     t.is(cli([...args, '--env', 'production'], { cwd, env }).code, 0)
   }
   t.is(cli(['ls'], { cwd, env: { ...env, NODE_ENV: 'staging' } }).stdout, 'A')
+})
+
+test('dotenv prints only secrets and accepts an env that only has a plain file', t => {
+  const cwd = project({ fixture: 'app' })
+  fs.writeFileSync(
+    path.join(cwd, 'config', 'staging.yml'),
+    'LOG_LEVEL: info\nS3_KEY: staging-s3\n'
+  )
+  const result = cli(['dotenv', '--json', '--env', 'staging'], {
+    cwd,
+    env: withKey
+  })
+  t.is(result.code, 0)
+  const secrets = JSON.parse(result.stdout)
+  t.false(Object.hasOwn(secrets, 'LOG_LEVEL'))
+  t.false(Object.hasOwn(secrets, 'S3_KEY'))
+  t.is(secrets.API_TOKEN, 'Bearer default #token')
 })
 
 test('--json is refused outside dotenv', t => {
@@ -849,25 +827,6 @@ test('get prints a value whose name is not a variable name', t => {
   const env = freshHome()
   t.is(cli(['get', 'log-level'], { cwd, env }).stdout, 'debug')
   t.is(cli(['get', 'empty'], { cwd, env }).code, 0)
-})
-
-test('fly stages by default and prints the checksum of the secrets', t => {
-  const cwd = project({ fixture: 'app' })
-  const fly = recordingBinary('fly')
-  const result = cli(['fly', '--env', 'production', '--app', 'api'], {
-    cwd,
-    env: { ...withKey, PATH: `${fly.dir}${path.delimiter}${process.env.PATH}` }
-  })
-  t.is(result.code, 0, result.stderr)
-  t.deepEqual(fly.call().args, ['secrets', 'import', '--stage', '--app', 'api'])
-  const { checksum } = require('../src')
-  const secrets = require('../src/secrets')
-  const expected = require('./helpers').withEnv(withKey, () =>
-    checksum(
-      secrets.loadSecrets(secrets.readLayers({ cwd, env: 'production' }))
-    )
-  )
-  t.is(result.stdout, expected)
 })
 
 test('init prints where everything went', t => {

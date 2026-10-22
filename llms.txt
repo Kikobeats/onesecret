@@ -6,7 +6,7 @@ Commit your credentials encrypted next to your code as SOPS files, and keep a si
 
 - One age key decrypts every environment.
 - Layers: config/default.yml and config/default.enc.yml are shared, config/<env>.yml and config/<env>.enc.yml override them, and config() returns one merged object.
-- Production never needs the key: deploys push the decrypted values to Kubernetes, Fly.io, or a dotenv file, and config() decrypts nothing when every secret is already in the environment.
+- Production never needs the key: deploys push the decrypted values to the platform (Kubernetes, Fly.io, Vercel, Netlify, Cloudflare, AWS, Google Cloud Run, and more) with dotenv --json, and config() decrypts nothing when every secret is already in the environment.
 - config() fails at boot naming every missing secret.
 
 ## Docs

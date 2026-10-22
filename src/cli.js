@@ -7,7 +7,6 @@ const path = require('node:path')
 const mri = require('mri')
 const secrets = require('./secrets')
 const write = require('./write')
-const deploy = require('./deploy')
 const store = require('./store')
 const { isEnvScalar, toDotenv, toEnv } = require('./format')
 const yaml = require('./yaml')
@@ -306,26 +305,7 @@ const COMMANDS = {
       ? JSON.stringify(toEnv(loaded))
       : toDotenv(loaded).trimEnd()
   },
-  exec: (flags, args) => exec(flags, args),
-  kubernetes: flags => {
-    const { checksum, output } = deploy.kubernetes({
-      ...readOptions(flags),
-      name: flags.name,
-      namespace: flags.namespace,
-      context: flags.context
-    })
-    if (output) console.error(output)
-    return checksum
-  },
-  fly: flags => {
-    const { checksum, output } = deploy.fly({
-      ...readOptions(flags),
-      app: flags.app,
-      stage: flags.stage
-    })
-    if (output) console.error(output)
-    return checksum
-  }
+  exec: (flags, args) => exec(flags, args)
 }
 
 const parse = argv => {
@@ -336,10 +316,9 @@ const parse = argv => {
     _: [command, ...args],
     ...flags
   } = mri(own, {
-    boolean: ['help', 'version', 'stage', 'json'],
-    string: ['dir', 'env', 'cwd', 'name', 'namespace', 'context', 'app'],
-    alias: { h: 'help', v: 'version', e: 'env', n: 'namespace' },
-    default: { stage: true }
+    boolean: ['help', 'version', 'json'],
+    string: ['dir', 'env', 'cwd'],
+    alias: { h: 'help', v: 'version', e: 'env' }
   })
   return {
     command,
