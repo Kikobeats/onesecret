@@ -165,7 +165,11 @@ main {
   position: fixed;
   top: 0;
   transform: translateX(-100%);
-  transition: transform 0.25s ease-out;
+  transition:
+    transform 0.25s ease-out,
+    translate 0.25s ease-out,
+    opacity 0.25s ease-out,
+    visibility 0.25s;
   width: var(--sidebar-width);
   z-index: 4;
 }
@@ -233,15 +237,11 @@ main {
   padding: 0;
 }
 
-.sidebar-nav > ul > li > a {
-  display: none;
-}
-
 .sidebar-nav li:has(> a[href$='?id=contents']) {
   display: none;
 }
 
-.sidebar-nav ul ul ul {
+.sidebar-nav ul ul {
   border-left: 1px solid var(--border-color);
   margin: 2px 0 8px 12px;
 }
@@ -257,15 +257,15 @@ main {
   transition: background-color 0.15s, color 0.15s;
 }
 
-.sidebar-nav ul ul > li > a {
+.sidebar-nav > ul > li > a {
   color: var(--primary-color);
 }
 
-.sidebar-nav ul ul > li:has(> ul) > a {
+.sidebar-nav > ul > li:has(> ul) > a {
   font-weight: 600;
 }
 
-.sidebar-nav ul ul ul > li > a {
+.sidebar-nav ul ul > li > a {
   color: var(--muted-color);
   font-weight: 400;
 }
@@ -481,8 +481,8 @@ main > .content {
   font-family: var(--code-font);
   font-size: 0.85em;
   line-height: 1;
+  overflow-wrap: anywhere;
   padding: 0.15em 0.35em;
-  white-space: nowrap;
 }
 
 .markdown-section pre {
@@ -549,7 +549,38 @@ main > .content {
 }
 
 
+section.cover {
+  display: none;
+  min-height: 100vh;
+  padding: 0;
+}
+
+section.cover.show {
+  display: block;
+}
+
+.cover .mask {
+  display: none;
+}
+
+.cover-main {
+  margin: 0;
+  max-width: none;
+  padding: 0;
+  text-align: left;
+}
+
+body:not(.sticky) .sidebar {
+  opacity: 0;
+  translate: -12px 0;
+  visibility: hidden;
+}
+
 @media (max-width: 768px) {
+  body:not(.sticky) .sidebar-toggle {
+    display: none;
+  }
+
   .sidebar {
     padding-top: 80px;
   }
@@ -659,11 +690,6 @@ main > .content {
 
   .markdown-section :is(h1, h2, h3, h4) {
     scroll-margin-top: 72px;
-  }
-
-  .markdown-section code {
-    overflow-wrap: anywhere;
-    white-space: normal;
   }
 
   .markdown-section h2 {

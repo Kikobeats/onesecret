@@ -51,8 +51,44 @@ const watchSearchResults = () => {
   })
 }
 
+const COVER_MODULE = 'docs/cover/main.js'
+
+let coverStarted = false
+
+const rendersLive = () =>
+  'gpu' in navigator &&
+  !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+  !new URLSearchParams(window.location.search).has('fallback')
+
+const startCover = () => {
+  const hero = document.querySelector('[data-cover]')
+  if (coverStarted || !hero) return false
+  coverStarted = true
+  if (rendersLive()) hero.dataset.expectLive = ''
+  import(new URL(COVER_MODULE, document.baseURI).href).catch(() => {
+    hero.dataset.mode = 'fallback'
+  })
+  return true
+}
+
+const startCoverWhenRendered = () => {
+  if (startCover()) return
+  const observer = new window.MutationObserver(() => {
+    if (startCover()) observer.disconnect()
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+}
+
+const hoistPageTitle = () => {
+  const list = document.querySelector('.sidebar-nav > ul')
+  if (list?.children.length !== 1) return
+  const nested = list.firstElementChild.querySelector(':scope > ul')
+  if (nested) list.firstElementChild.replaceWith(...nested.children)
+}
+
 const enhancePage = () => {
   document.querySelector('#seo-content')?.remove()
+  hoistPageTitle()
   markSignatures()
   window.codecopy('pre')
 }
@@ -60,6 +96,8 @@ const enhancePage = () => {
 window.$docsify = {
   name: 'onesecret',
   repo: 'kikobeats/onesecret',
+  coverpage: true,
+  onlyCover: false,
   maxLevel: 3,
   auto2top: true,
   noEmoji: true,
@@ -74,6 +112,7 @@ window.$docsify = {
   plugins: [
     hook => {
       hook.doneEach(enhancePage)
+      hook.ready(startCoverWhenRendered)
       hook.ready(watchSearchResults)
     }
   ]
