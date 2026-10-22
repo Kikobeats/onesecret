@@ -33,17 +33,21 @@ function assertFitsTable (key, value) {
   }
 }
 
-export function encodeLines () {
-  const rows = SECRET_LINES.length + 1
+export function encodeLines (lines = SECRET_LINES) {
+  const rows = lines.length + 1
   const data = new Uint8Array(TEXEL_WIDTH * rows).fill(32)
-  SECRET_LINES.forEach(([key, value], row) => {
+  lines.forEach(([key, value], row) => {
     assertFitsTable(key, value)
     const text = `${key}${SEPARATOR}${value}`.slice(0, TEXT_CELLS)
-    for (let i = 0; i < text.length; i++) { data[row * TEXEL_WIDTH + i] = text.charCodeAt(i) }
+    for (let i = 0; i < text.length; i++) {
+      data[row * TEXEL_WIDTH + i] = text.charCodeAt(i)
+    }
     data[row * TEXEL_WIDTH + TEXT_CELLS] = key.length + SEPARATOR.length
     data[row * TEXEL_WIDTH + TEXT_CELLS + 1] = text.length
   })
-  const prefixRow = SECRET_LINES.length * TEXEL_WIDTH
-  for (let i = 0; i < CIPHER_PREFIX.length; i++) { data[prefixRow + i] = CIPHER_PREFIX.charCodeAt(i) }
+  const prefixRow = lines.length * TEXEL_WIDTH
+  for (let i = 0; i < CIPHER_PREFIX.length; i++) {
+    data[prefixRow + i] = CIPHER_PREFIX.charCodeAt(i)
+  }
   return { data, width: TEXEL_WIDTH, height: rows }
 }

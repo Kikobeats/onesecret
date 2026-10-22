@@ -126,7 +126,7 @@ $ npx onesecret set --env staging DATABASE_URL=postgres://db.staging/app
 Give your coding agent this prompt:
 
 ```
-Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/<env>.yml, encrypt secrets with npx onesecret set --env <env> NAME=value, replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.
+Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/<env>.yml, encrypt secrets with npx onesecret set --env <env> NAME=value only on your own machine or a trusted CI runner (the value is in the process list while set runs), replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.
 ```
 
 ## Deploy

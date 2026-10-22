@@ -57,7 +57,8 @@ let coverStarted = false
 
 const rendersLive = () =>
   'gpu' in navigator &&
-  !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+  !new URLSearchParams(window.location.search).has('fallback')
 
 const startCover = () => {
   const hero = document.querySelector('[data-cover]')

@@ -21,4 +21,4 @@ $ npm install
 $ npm run build
 ```
 
-`build/atlas.mjs` draws the JetBrains Mono glyph atlas, `build/prepare.mjs` prepares the shader, and `build/render.mjs` renders the fallback frames headlessly with `vgpu/node`. The build is reproducible: the same sources give byte-identical files on any machine.
+`build/atlas.mjs` draws the JetBrains Mono glyph atlas, `build/prepare.mjs` prepares the shader, and `build/render.mjs` renders the fallback frames headlessly with `vgpu/node`. `prepare.mjs` strips the local path before writing `shaders.js`, so that file does not depend on the directory the build runs from.

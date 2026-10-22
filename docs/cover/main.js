@@ -64,7 +64,9 @@ function readTheme () {
 
 function contentRight (element) {
   const range = document.createRange()
-  range.selectNodeContents(element)
+  // The live span is stretched across the line box, past the glyphs.
+  const ink = element.querySelector('.cover__scramble-sizer') ?? element
+  range.selectNodeContents(ink)
   return range.getBoundingClientRect().right
 }
 
@@ -307,27 +309,51 @@ function scrambleTagline () {
 }
 
 const COPIED_MS = 1400
+const copyReset = new WeakMap()
+
+function scheduleReset (button, reset) {
+  const pending = copyReset.get(button)
+  if (pending) clearTimeout(pending)
+  copyReset.set(
+    button,
+    setTimeout(() => {
+      copyReset.delete(button)
+      reset()
+    }, COPIED_MS)
+  )
+}
 
 async function copyText (button, text) {
   try {
     await navigator.clipboard.writeText(text)
     button.dataset.copied = 'true'
+    return true
   } catch {
-    button.dataset.copied = 'false'
+    delete button.dataset.copied
+    return false
   }
-  setTimeout(() => delete button.dataset.copied, COPIED_MS)
+}
+
+function bindCopy (button, readText, label) {
+  const idle = label?.textContent
+  button.addEventListener('click', async () => {
+    const copied = await copyText(button, readText())
+    if (label) label.textContent = copied ? 'Copied' : idle
+    if (!copied) return
+    scheduleReset(button, () => {
+      delete button.dataset.copied
+      if (label) label.textContent = idle
+    })
+  })
 }
 
 function setupCopy () {
   const command = cover.querySelector('[data-command]')
-  const copy = cover.querySelector('[data-copy]')
   const copyPrompt = cover.querySelector('[data-copy-prompt]')
-  const copyPromptLabel = copyPrompt.querySelector('[data-copy-prompt-label]')
-  copy.addEventListener('click', () => copyText(copy, command.textContent))
-  copyPrompt.addEventListener('click', async () => {
-    await copyText(copyPrompt, copyPrompt.dataset.prompt)
-    copyPromptLabel.textContent =
-      copyPrompt.dataset.copied === 'true' ? 'Copied' : 'Copy prompt'
-    setTimeout(() => (copyPromptLabel.textContent = 'Copy prompt'), COPIED_MS)
-  })
+  bindCopy(cover.querySelector('[data-copy]'), () => command.textContent)
+  bindCopy(
+    copyPrompt,
+    () => copyPrompt.dataset.prompt,
+    copyPrompt.querySelector('[data-copy-prompt-label]')
+  )
 }

@@ -117,7 +117,7 @@
 
 .cover__install { margin-top: 36px; max-width: 440px; }
 
-.cover__tabs {
+.cover__meta {
   display: flex;
   align-items: center;
   gap: 8px;
