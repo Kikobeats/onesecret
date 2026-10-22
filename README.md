@@ -10,7 +10,7 @@ Put your app's passwords, tokens, and API keys in your repository, encrypted, ri
 
 ## Why onesecret
 
-- **One key for every environment.** Keep it in your password manager and in CI. It never goes into your app or your Docker image.
+- **One key for every environment.** Store it somewhere safe and in CI. It never goes into your app or your Docker image.
 - **Secrets and settings side by side.** Plain settings, like a port or a log level, live next to your secrets in one `config/` folder, and your app gets them all as one object.
 - **Production done right.** The recommended way to run secrets in production is as environment variables set by your hosting platform, never as a key on the server. onesecret follows that: when you deploy, it sends the values to your platform, and your servers never hold the key. If a server leaks, it leaks only its own values, not the key to everything else.
 
@@ -32,8 +32,8 @@ public key   age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 private key  AGE-SECRET-KEY-1…
 secrets      config/default.enc.yml
 
-The private key is shown only now and is not saved anywhere. Keep it in your
-password manager and as SOPS_AGE_KEY in CI. To use it in this shell:
+The private key is the only secret to keep: it decrypts all the others.
+It is shown only now and saved nowhere. To use it in this shell:
 
 export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 ```
@@ -129,7 +129,7 @@ Tests that do need credentials can run under `onesecret exec -- npm test`, which
 
 ### Join a project
 
-Get the key from your team's password manager and export it. The encrypted files already say which key opens them, so there is nothing else to set up.
+Get the key from whoever set up the project and export it. The encrypted files already say which key opens them, so there is nothing else to set up.
 
 ```bash
 $ export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
