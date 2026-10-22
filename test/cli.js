@@ -1411,6 +1411,19 @@ test('set refuses bytes that are not UTF-8 and NUL bytes', t => {
   t.is(rawCli(['ls'], { cwd, env }).stdout, '')
 })
 
+test('set keeps a leading UTF-8 BOM in a piped value', t => {
+  const cwd = temporaryDir('set-bom')
+  const env = freshHome()
+  init(cwd, env)
+  const value = Buffer.concat([
+    Buffer.from([0xef, 0xbb, 0xbf]),
+    Buffer.from('secret')
+  ])
+  const result = rawCli(['set', 'BOM'], { cwd, env, input: value })
+  t.is(result.code, 0, result.stderr)
+  t.is(rawCli(['get', 'BOM'], { cwd, env }).rawStdout, '\uFEFFsecret')
+})
+
 test.serial(
   'the editor keeps a value that ends in a newline when nothing changes',
   t => {

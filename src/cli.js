@@ -228,7 +228,7 @@ const SET_USAGE =
   'set takes one NAME: the value comes from $EDITOR, or from stdin when piped'
 
 const EDITOR_NEWLINES = ['', '\n', '\r\n']
-const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true })
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 
 const assertStorable = value => {
   if (value.includes('\0')) {
