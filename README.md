@@ -336,10 +336,18 @@ $ printf %s "$SOPS_AGE_KEY" | gh secret set SOPS_AGE_KEY --env production
 ```
 
 ```yaml
-- run: ./deploy.sh
-  env:
-    SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./deploy.sh
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 ```
+
+The job must declare `environment: production`: GitHub gives an environment's secrets only to jobs that reference it.
 
 Do not import `onesecret dotenv` with `gh secret set --env-file`: gh parses it with godotenv, which expands `$NAME` and rejects backticks.
 
@@ -373,7 +381,7 @@ Each encrypted file records the public key it is locked for, so a new layer such
 Both read the secret names (they are plaintext in the encrypted files) and check `process.env`:
 
 1. Every secret is already set: nothing is decrypted, and the key is not needed. This is production. A variable set to an empty string counts as set.
-2. Some secrets are missing: they find the age key and decrypt **only** for the missing ones. `config()` returns them; `env()` writes them into `process.env`.
+2. Some secrets are missing: they find the age key, decrypt every encrypted layer, and supply **only** the missing values. `config()` returns them; `env()` writes them into `process.env`. The key must open every encrypted layer of that env, even when only one of them holds a missing secret.
 3. Some secrets are missing and there is no key: they throw, naming each missing secret.
 
 Values already in the environment always win, for plain settings too. In `production` and `staging`, neither runs `keyCommand`, so a missing secret fails the boot instead of fetching a key.

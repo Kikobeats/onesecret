@@ -74,8 +74,7 @@ const readLayer = (dir, name) => {
 const sha256 = data => crypto.createHash('sha256').update(data).digest('hex')
 
 const readEncrypted = file => {
-  const text = fs.readFileSync(file, 'utf8')
-  const document = store.parseDocument(file, text)
+  const { text, document } = store.readDocumentText(file)
   if (document === null) return { document: null }
   try {
     sops.names(document)

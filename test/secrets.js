@@ -1538,3 +1538,19 @@ test.serial(
     )
   }
 )
+
+test.serial('an unreadable encrypted file fails with EFORMAT naming it', t => {
+  if (process.getuid?.() === 0) return t.pass()
+  const cwd = encryptedProject({ default: { TOKEN: 'secret' } })
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  fs.chmodSync(file, 0o000)
+  try {
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+      t.is(error.code, 'EFORMAT')
+      t.regex(error.message, /cannot read .*default\.enc\.yml: EACCES/)
+    })
+  } finally {
+    fs.chmodSync(file, 0o600)
+  }
+})
