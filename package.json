@@ -42,7 +42,7 @@
     "@commitlint/config-conventional": "latest",
     "ava": "latest",
     "c8": "latest",
-    "dotenv": "~17.4.2",
+    "dotenv": "~18.0.8",
     "finepack": "latest",
     "git-authors-cli": "latest",
     "github-generate-release": "latest",
