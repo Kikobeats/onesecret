@@ -132,8 +132,6 @@
   border-radius: 4px;
 }
 
-.cover__dot { color: var(--cover-muted); }
-
 .cover__command {
   position: relative;
   display: flex;
@@ -167,7 +165,6 @@
   content: "$ ";
   color: var(--cover-accent);
 }
-.cover__label { color: var(--cover-text); padding: 4px 0; }
 .cover__copy-prompt {
   appearance: none;
   display: inline-flex;

@@ -317,8 +317,9 @@ const COMMANDS = {
       `private key  ${result.identity}`,
       `secrets      ${relative(result.defaultFile)}`,
       '',
-      'The private key is shown only now and is not saved anywhere. Keep it in your',
-      'password manager and as SOPS_AGE_KEY in CI. To use it in this shell:',
+      'The private key is the only secret to keep: it decrypts all the others.',
+      'It is shown only now and saved nowhere, so store it safely (and as',
+      'SOPS_AGE_KEY in CI). To use it in this shell:',
       '',
       `  export SOPS_AGE_KEY=${result.identity}`
     ].join('\n')
