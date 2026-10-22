@@ -9,6 +9,7 @@ The website's cover is a live WebGPU scene rendered with [vgpu](https://vgpu.sh)
 - Rendering pauses when the cover is off screen or the tab is hidden, and the DPR is capped at 2.
 - Without WebGPU, when the adapter fails, or with `prefers-reduced-motion`, the page keeps the static frame from `fallback-*.webp`. `?fallback=1` forces it.
 - The theme follows `prefers-color-scheme` and `data-theme`, and switches live.
+- The tagline decrypts in on load, and the install command scrambles from one to the next when the tab changes, with base64 characters as noise. `scramble.js` is a vanilla port of use-scramble (see `NOTICES.md`), and it resolves instantly with `prefers-reduced-motion`.
 
 ## Rebuild
 

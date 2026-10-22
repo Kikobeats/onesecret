@@ -1,4 +1,5 @@
 import { lensShader } from './shaders.js'
+import { createScramble } from './scramble.js'
 import {
   BEST_FRAME_SECONDS,
   INTRO,
@@ -9,6 +10,26 @@ import {
 } from './scene.js'
 
 const VGPU_URL = 'https://cdn.jsdelivr.net/npm/vgpu@0.6.0/+esm'
+const BASE64_CHARS = [
+  ...'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+].map(char => char.charCodeAt(0))
+const TAGLINE_SCRAMBLE = {
+  speed: 0.6,
+  step: 1,
+  seed: 3,
+  scramble: 6,
+  overdrive: false,
+  range: BASE64_CHARS,
+  ignore: [' ', '\u00a0']
+}
+const COMMAND_SCRAMBLE = {
+  speed: 1,
+  step: 2,
+  seed: 1,
+  scramble: 3,
+  overdrive: false,
+  range: BASE64_CHARS
+}
 const DPR_RANGE = [1, 2]
 const POINTER_IDLE_SECONDS = 2.8
 const FOLLOW_STIFFNESS = 3.2
@@ -20,6 +41,7 @@ const canvas = cover.querySelector('canvas')
 const textBlock = cover.querySelector('[data-cover-text]')
 const MAX_TILT = 0.05
 
+scrambleTagline()
 setupTabs()
 start().catch(error =>
   showFallback(`init-failed: ${error?.code ?? error?.message ?? error}`)
@@ -273,17 +295,38 @@ function exposeTimings (gpuTimer) {
   })
 }
 
+function scrambleTagline () {
+  const tagline = cover.querySelector('.cover__tagline')
+  const text = tagline.textContent
+  const sizer = document.createElement('span')
+  sizer.className = 'cover__scramble-sizer'
+  sizer.textContent = text
+  const live = document.createElement('span')
+  live.className = 'cover__scramble-live'
+  live.setAttribute('aria-hidden', 'true')
+  tagline.replaceChildren(sizer, live)
+  tagline.classList.add('cover__scrambled')
+  const scramble = createScramble(live, TAGLINE_SCRAMBLE)
+  scramble.show(text)
+  scramble.play(text)
+}
+
 function setupTabs () {
   const tabs = [...cover.querySelectorAll('[role=tab]')]
   const command = cover.querySelector('[data-command]')
   const copy = cover.querySelector('[data-copy]')
+  const scramble = createScramble(command, COMMAND_SCRAMBLE)
+  let selected = command.textContent
+  scramble.show(selected)
   const select = tab => {
     tabs.forEach(other => {
       const active = other === tab
       other.setAttribute('aria-selected', String(active))
       other.tabIndex = active ? 0 : -1
     })
-    command.textContent = tab.dataset.value
+    if (tab.dataset.value === selected) return
+    selected = tab.dataset.value
+    scramble.play(selected)
   }
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => select(tab))
@@ -298,7 +341,7 @@ function setupTabs () {
   })
   copy.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(command.textContent)
+      await navigator.clipboard.writeText(selected)
       copy.dataset.copied = 'true'
       setTimeout(() => delete copy.dataset.copied, 1400)
     } catch {

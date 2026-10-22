@@ -100,6 +100,10 @@
   box-shadow: 0 0 0 1px var(--cover-border), 0 18px 40px -18px color-mix(in srgb, var(--cover-accent) 60%, transparent);
 }
 
+.cover__scrambled { display: grid; }
+.cover__scrambled > span { grid-area: 1 / 1; }
+.cover__scramble-sizer { opacity: 0; }
+
 .cover__tagline {
   margin: 22px 0 0;
   font-family: var(--cover-font-body);
