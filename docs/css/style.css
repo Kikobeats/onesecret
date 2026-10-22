@@ -438,6 +438,17 @@ main > .content {
   margin: 0;
 }
 
+.markdown-section #license ~ blockquote {
+  border-left: 0;
+  color: var(--muted-color);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
 .markdown-section details {
   border: 1px solid var(--border-color);
   border-radius: 10px;
