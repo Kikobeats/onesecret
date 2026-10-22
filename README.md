@@ -35,10 +35,10 @@ secrets      config/default.enc.yml
 The private key is shown only now and is not saved anywhere. Keep it in your
 password manager and as SOPS_AGE_KEY in CI. To use it in this shell:
 
-  export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
+export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 ```
 
-Copy the private key into your password manager now. It is shown only once, and without it nobody can read the secrets. Never commit it. The public key is already written into the encrypted file, so you don't need to keep it.
+The private key is the only secret you need to keep: it decrypts all the others. It is shown only once and saved nowhere, so store it somewhere safe and never commit it. You don't need to keep the public key, since it is already written into the encrypted file.
 
 **2. Add your settings and secrets, then commit them.**
 
