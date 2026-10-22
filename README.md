@@ -41,7 +41,7 @@ $ git add config
 
 `init` prints the private key once and writes it nowhere, so it never sits in a file on your disk. Save it in your password manager before closing the terminal: without it, nobody can decrypt the files.
 
-There is no other configuration. Each encrypted file records the public key it is locked for, so a new layer such as `config/staging.enc.yml` is locked for the same key as `config/default.enc.yml`. A file with no encrypted neighbour is locked for the public key of the `SOPS_AGE_KEY` you exported.
+There is no other configuration. Each encrypted file records the public key it is locked for, so a new layer such as `config/staging.enc.yml` is locked for the same key as `config/default.enc.yml` in its folder, with the same encryption rules. A file whose folder has no `default.enc.yml` is locked for the public key of the `SOPS_AGE_KEY` you exported. To join an existing project, export its key first: `init` then uses it and prints no new key.
 
 Load them as the first thing your app does:
 
@@ -183,7 +183,8 @@ Usage
   $ onesecret <command> [options]
 
 Commands
-  init                      Create an age key, print it, and write config/default.enc.yml
+  init                      Write config/default.enc.yml for a new age key it prints once,
+                            or for SOPS_AGE_KEY when exported
   set NAME=value...         Encrypt one or more secrets into a layer
   unset NAME...             Remove secrets from a layer
   edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
@@ -221,7 +222,7 @@ Examples
 
 When an edit is not valid YAML, the editor opens again with your changes, and the error never prints the decrypted content.
 
-`edit` opens `$VISUAL` or `$EDITOR` (then `vi`). GUI editors that return at once, such as VS Code, Cursor, Zed, or Sublime Text, get their wait flag added, so `EDITOR=code` works without `--wait`. Any other editor command must wait until the file is closed, as git requires too. It takes the path of the file to open, such as `config/production.enc.yml`, or edits the `--env` layer when no path is given. A path that does not exist yet is created for the same recipients as the default layer, and is refused before the editor opens when onesecret cannot tell who to lock it for. A plain `.yml` or `.json` path opens as it is; when it is saved invalid, the editor opens again. `get` reads a plain value without the key, and prints a nested value as YAML.
+`edit` opens `$VISUAL` or `$EDITOR` (then `vi`). GUI editors that return at once, such as VS Code, Cursor, Zed, or Sublime Text, get their wait flag added, so `EDITOR=code` works without `--wait`. Any other editor command must wait until the file is closed, as git requires too. It takes the path of the file to open, such as `config/production.enc.yml`, or edits the `--env` layer when no path is given. A path that does not exist yet is locked for the recipients of `default.enc.yml` in its folder, or else for your exported `SOPS_AGE_KEY`, and is refused before the editor opens when there is neither. A plain `.yml` or `.json` path opens as it is; when it is saved invalid, the editor opens again. `get` reads a plain value without the key, and prints a nested value as YAML.
 
 ### Separate keys per person
 

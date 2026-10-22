@@ -39,34 +39,50 @@ const assertRecipients = (recipients, source) => {
   }
 }
 
-const siblingDocumentOf = file => {
-  const dir = path.dirname(file)
-  const defaultFile = store.findLayerFile(dir, store.DEFAULT_LAYER)
-  const others = store
-    .encryptedFilesIn(dir)
-    .filter(candidate => candidate !== file && candidate !== defaultFile)
-  for (const candidate of [defaultFile, ...others]) {
-    if (!candidate || candidate === file) continue
-    const document = store.readDocument(candidate)
-    if (document) return { file: candidate, document }
+const recipientsOfFile = (file, document) => {
+  try {
+    return {
+      recipients: sops.recipientsOf(document),
+      rules: sops.rulesOf(document.sops)
+    }
+  } catch (error) {
+    throw new OnesecretError(
+      `${file}: ${error.reason || error.message}`,
+      'EFORMAT'
+    )
   }
-  return null
 }
+
+const defaultLayerOf = file => {
+  const defaultFile = store.findLayerFile(
+    path.dirname(file),
+    store.DEFAULT_LAYER
+  )
+  if (!defaultFile || defaultFile === file) return null
+  const document = store.readDocument(defaultFile)
+  if (!document) return null
+  const { recipients, rules } = recipientsOfFile(defaultFile, document)
+  return recipients.length > 0
+    ? { recipients, rules, source: defaultFile }
+    : null
+}
+
+const exportedSource = () => ({
+  recipients: exportedRecipients(),
+  source: 'SOPS_AGE_KEY'
+})
 
 const recipientsFor = (file, existing) => {
   const rule = store.creationRule(file)
   if (rule) {
-    return { recipients: rule.recipients, source: store.SOPS_CONFIG, rule }
-  }
-  if (existing) return { recipients: sops.recipientsOf(existing), source: file }
-  const sibling = siblingDocumentOf(file)
-  if (sibling) {
     return {
-      recipients: sops.recipientsOf(sibling.document),
-      source: sibling.file
+      recipients: rule.recipients,
+      rules: rule.rules,
+      source: store.SOPS_CONFIG
     }
   }
-  return { recipients: exportedRecipients(), source: 'SOPS_AGE_KEY' }
+  if (existing) return { recipients: sops.recipientsOf(existing), source: file }
+  return defaultLayerOf(file) || exportedSource()
 }
 
 const encryptionFor = (file, existing) => {
@@ -79,7 +95,7 @@ const encryptionFor = (file, existing) => {
       'EFORMAT'
     )
   }
-  const { recipients, source, rule } = recipientsFor(file, existing)
+  const { recipients, source, rules: inherited } = recipientsFor(file, existing)
   if (recipients.length === 0) {
     throw new OnesecretError(
       `no age recipient for ${file}: export SOPS_AGE_KEY with the key that should open it, or run "onesecret init"`,
@@ -89,7 +105,7 @@ const encryptionFor = (file, existing) => {
   assertRecipients(recipients, source)
   const rules = existing
     ? sops.rulesOf(existing.sops)
-    : withDefaultSelector((rule && rule.rules) || {})
+    : withDefaultSelector(inherited || {})
   return { recipients, rules }
 }
 
@@ -214,6 +230,14 @@ const fromEditableYaml = text => {
   return tree
 }
 
+const initialRecipients = defaultFile => {
+  const rule = store.creationRule(defaultFile)
+  if (rule) return { recipients: rule.recipients, source: store.SOPS_CONFIG }
+  const exported = exportedRecipients()
+  if (exported.length > 0) { return { recipients: exported, source: 'SOPS_AGE_KEY' } }
+  return null
+}
+
 const initialize = options => {
   const { dir } = resolveOptions(options)
   const defaultFile = store.layerFileOrNew(dir, store.DEFAULT_LAYER)
@@ -221,16 +245,22 @@ const initialize = options => {
     ? store.readDocument(defaultFile)
     : null
   if (existing) {
-    return {
-      created: false,
-      recipient: sops.recipientsOf(existing).join(','),
-      defaultFile
-    }
+    const { recipients } = recipientsOfFile(defaultFile, existing)
+    return { status: 'existing', recipients, defaultFile }
   }
-  const rule = store.creationRule(defaultFile)
-  if (rule) {
+  const known = initialRecipients(defaultFile)
+  if (known) {
     writeLayer({ file: defaultFile, existing: null }, {})
-    return { created: false, recipient: rule.recipients.join(','), defaultFile }
+    return { status: 'adopted', ...known, defaultFile }
+  }
+  const layers = store.encryptedFilesIn(dir)
+  if (layers.length > 0) {
+    throw new OnesecretError(
+      `${dir} already has encrypted layers (${layers
+        .map(file => path.basename(file))
+        .join(', ')}): export SOPS_AGE_KEY with their key and run init again`,
+      'ENOKEY'
+    )
   }
   const identity = age.generateIdentity()
   const recipient = age.recipientOf(identity)
@@ -241,7 +271,7 @@ const initialize = options => {
       { recipients: [recipient], rules: withDefaultSelector({}) }
     )
   )
-  return { created: true, recipient, identity, defaultFile }
+  return { status: 'created', recipients: [recipient], identity, defaultFile }
 }
 
 module.exports = {

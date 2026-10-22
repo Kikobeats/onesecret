@@ -1047,7 +1047,7 @@ test('with a .sops.yaml rule, init creates a missing default layer for its recip
   const result = cli(['init'], { cwd, env: freshHome() })
   t.is(
     result.stdout,
-    `already initialized for ${FIXTURE_RECIPIENT} (config/default.enc.yml)`
+    `created config/default.enc.yml for ${FIXTURE_RECIPIENT} (from .sops.yaml)`
   )
   t.deepEqual(recipientsIn(path.join(cwd, 'config', 'default.enc.yml')), [
     FIXTURE_RECIPIENT
@@ -1072,4 +1072,105 @@ test('a new file with no neighbour is locked for the exported key, and needs one
   t.deepEqual(recipientsIn(path.join(cwd, 'other', 'production.enc.yml')), [
     require('../src/age').recipientOf(key)
   ])
+})
+
+test('the exported key file adds every key except commented ones', t => {
+  const age = require('../src/age')
+  const [kept, revoked, second] = [
+    age.generateIdentity(),
+    age.generateIdentity(),
+    age.generateIdentity()
+  ]
+  const keyFile = path.join(temporaryDir('keys'), 'keys.txt')
+  fs.writeFileSync(keyFile, `# old key, revoked: ${revoked}\n${kept}\n`)
+  const cwd = temporaryDir('commented')
+  const env = {
+    ...freshHome(),
+    SOPS_AGE_KEY_FILE: keyFile,
+    SOPS_AGE_KEY: second
+  }
+  t.is(cli(['set', 'X=1'], { cwd, env }).code, 0)
+  t.deepEqual(
+    recipientsIn(path.join(cwd, 'config', 'default.enc.yml')).sort(),
+    [age.recipientOf(kept), age.recipientOf(second)].sort()
+  )
+})
+
+test('a new file ignores unrelated encrypted neighbours and uses the exported key', t => {
+  const age = require('../src/age')
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const cwd = temporaryDir('neighbour')
+  const vendor = age.generateIdentity()
+  store.writeDocument(
+    path.join(cwd, 'config', 'vendor.enc.yml'),
+    sops.encrypt({ A: 'x' }, { recipients: [age.recipientOf(vendor)] })
+  )
+  fs.writeFileSync(path.join(cwd, 'config', 'zzz.enc.yml'), 'foo: [unclosed\n')
+  const mine = age.generateIdentity()
+  const env = { ...freshHome(), SOPS_AGE_KEY: mine }
+  t.is(cli(['set', '-e', 'staging', 'X=1'], { cwd, env }).code, 0)
+  t.deepEqual(recipientsIn(path.join(cwd, 'config', 'staging.enc.yml')), [
+    age.recipientOf(mine)
+  ])
+  t.is(cli(['get', '-e', 'staging', 'X'], { cwd, env }).stdout, '1')
+})
+
+test('a damaged default layer is named when a new layer needs its recipients', t => {
+  const cwd = temporaryDir('bad-default')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  fs.writeFileSync(path.join(cwd, 'config', 'default.enc.yml'), 'FOO: bar\n')
+  const result = cli(['set', '-e', 'staging', 'X=1'], { cwd, env: withKey })
+  t.is(result.code, 1)
+  t.regex(result.stderr, /default\.enc\.yml: file is not encrypted with sops/)
+})
+
+test('a new layer inherits the encryption rules of the default layer', t => {
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const { FIXTURE_RECIPIENT } = require('./helpers')
+  const cwd = temporaryDir('inherit-rules')
+  store.writeDocument(
+    path.join(cwd, 'config', 'default.enc.yml'),
+    sops.encrypt(
+      { PASSWORD: 'x' },
+      { recipients: [FIXTURE_RECIPIENT], rules: { encrypted_regex: '^PASS' } }
+    )
+  )
+  t.is(
+    cli(['set', '-e', 'staging', 'PASSWORD=y'], { cwd, env: withKey }).code,
+    0
+  )
+  const staging = yaml.load(
+    fs.readFileSync(path.join(cwd, 'config', 'staging.enc.yml'), 'utf8')
+  )
+  t.is(staging.sops.encrypted_regex, '^PASS')
+})
+
+test('init adopts an exported key, and refuses to start a second key next to existing layers', t => {
+  const age = require('../src/age')
+  const key = age.generateIdentity()
+  const cwd = temporaryDir('init-adopt')
+  const adopted = cli(['init'], {
+    cwd,
+    env: { ...freshHome(), SOPS_AGE_KEY: key }
+  })
+  t.is(
+    adopted.stdout,
+    `created config/default.enc.yml for ${age.recipientOf(
+      key
+    )} (from SOPS_AGE_KEY)`
+  )
+  t.notRegex(adopted.stdout, /AGE-SECRET-KEY/)
+
+  const existing = project({ fixture: 'app' })
+  fs.rmSync(path.join(existing, 'config', 'default.enc.yml'))
+  const refused = cli(['init'], { cwd: existing, env: freshHome() })
+  t.is(refused.code, 1)
+  t.regex(
+    refused.stderr,
+    /already has encrypted layers \(production\.enc\.yml\): export SOPS_AGE_KEY/
+  )
+  t.notRegex(refused.stdout, /AGE-SECRET-KEY/)
+  t.false(fs.existsSync(path.join(existing, 'config', 'default.enc.yml')))
 })

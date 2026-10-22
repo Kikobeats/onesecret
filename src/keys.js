@@ -166,7 +166,11 @@ const exportedKeyText = () => {
       texts.push(fs.readFileSync(process.env.SOPS_AGE_KEY_FILE, 'utf8'))
     } catch {}
   }
-  return texts.join('\n')
+  return texts
+    .join('\n')
+    .split('\n')
+    .filter(line => !line.trim().startsWith('#'))
+    .join('\n')
 }
 
 const recipientOrNull = identity => {
