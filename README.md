@@ -10,9 +10,10 @@ Put your app's passwords, tokens, and API keys in your repository, encrypted, ri
 
 ## Why onesecret
 
-- **One key for every environment.** Store it somewhere safe and in CI. It never goes into your app or your Docker image.
-- **Secrets and settings side by side.** Plain settings, like a port or a log level, live next to your secrets in one `config/` folder, and your app gets them all as one object.
-- **Production done right.** The recommended way to run secrets in production is as environment variables set by your hosting platform, never as a key on the server. onesecret follows that: when you deploy, it sends the values to your platform, and your servers never hold the key. If a server leaks, it leaks only its own values, not the key to everything else.
+- **Your secrets are never exposed.** In the repository they are always encrypted, so anyone who sees the code, a fork, or the git history sees nothing usable. In production your hosting platform holds the values as environment variables, the standard way to run secrets, and the key never reaches your servers. If a server leaks, it leaks only its own values.
+- **One key unlocks everything.** Every secret, in every environment, opens with the same key. Onboarding a teammate or a CI job means sharing that one key, and nothing else.
+- **Works on any platform.** Your app reads plain environment variables, which every host supports: Vercel, Fly.io, Kubernetes, AWS, Docker, or your own server. There is no secrets service to sign up for, pay for, or migrate away from.
+- **Versioned with your code.** Secrets and plain settings live side by side in one `config/` folder, so a change ships in the same commit and pull request as the code that needs it, with history and review.
 
 ## Install
 
