@@ -67,17 +67,27 @@ $ git add config && git commit -m "Add config"
 
 **3. Load them when your app starts.**
 
+`config()` returns your settings and secrets as one object:
+
 ```js
-const onesecret = require('onesecret')
+const config = require('onesecret').config()
 
-const config = onesecret.config() // everything as one object
-console.log(config.PORT, config.DATABASE_URL)
-
-onesecret.env() // or put it all in process.env, like dotenv
-console.log(process.env.DATABASE_URL)
+config.PORT // 3000
+config.get('LOG_LEVEL', 'info') // 'info', the fallback, since LOG_LEVEL is unset
+config.has('SENTRY_DSN') // false
+config.require('DATABASE_URL') // the value, or an error naming it when unset
+const { DATABASE_URL } = config.required // the same, for several names at once
 ```
 
 The environment comes from `NODE_ENV`, or `development` when it is unset. To pick one yourself, pass its name: `config('production')`.
+
+**Alternative:** if your code already reads `process.env`, as with dotenv, call `env()` instead. It puts every value into `process.env`:
+
+```js
+require('onesecret').env()
+
+process.env.DATABASE_URL // 'postgres://…'
+```
 
 On your laptop, onesecret decrypts with the key you exported. Without a key, it stops and tells you which secret it could not read:
 
