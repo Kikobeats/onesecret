@@ -70,6 +70,7 @@
 .cover-hero[data-mode="live"] .cover__scene { opacity: 1; }
 .cover-hero[data-mode="live"] .cover__still { visibility: hidden; transition: visibility 0s 0.6s; }
 .cover-hero[data-mode="fallback"] .cover__scene { display: none; }
+.cover-hero[data-mode="loading"][data-expect-live] .cover__still { visibility: hidden; }
 
 .cover__text {
   position: relative;

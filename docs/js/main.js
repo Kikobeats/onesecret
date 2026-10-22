@@ -55,10 +55,18 @@ const COVER_MODULE = 'docs/cover/main.js'
 
 let coverStarted = false
 
+const rendersLive = () =>
+  'gpu' in navigator &&
+  !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 const startCover = () => {
-  if (coverStarted || !document.querySelector('[data-cover]')) return false
+  const hero = document.querySelector('[data-cover]')
+  if (coverStarted || !hero) return false
   coverStarted = true
-  import(new URL(COVER_MODULE, document.baseURI).href)
+  if (rendersLive()) hero.dataset.expectLive = ''
+  import(new URL(COVER_MODULE, document.baseURI).href).catch(() => {
+    hero.dataset.mode = 'fallback'
+  })
   return true
 }
 

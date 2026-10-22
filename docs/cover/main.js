@@ -1,5 +1,6 @@
 import { lensShader } from './shaders.js'
 import {
+  BEST_FRAME_SECONDS,
   INTRO,
   autopilot,
   createLensEffect,
@@ -30,8 +31,12 @@ function showFallback (reason) {
 }
 
 function wantsFallback () {
-  if (new URLSearchParams(window.location.search).has('fallback')) { return 'forced' }
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return 'reduced-motion' }
+  if (new URLSearchParams(window.location.search).has('fallback')) {
+    return 'forced'
+  }
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return 'reduced-motion'
+  }
   if (!('gpu' in navigator)) return 'no-webgpu'
   return null
 }
@@ -161,7 +166,7 @@ async function start () {
 
 function createState () {
   return {
-    seconds: 0,
+    seconds: BEST_FRAME_SECONDS,
     theme: readTheme(),
     themeTarget: readTheme(),
     layout: null,
@@ -206,7 +211,9 @@ function advance (state, step) {
   state.seconds += step
   state.pointerAge += step
   const rect = cover.getBoundingClientRect()
-  if (!state.layout) { state.layout = layoutFor(rect.width, rect.height, textBoxFor(rect)) }
+  if (!state.layout) {
+    state.layout = layoutFor(rect.width, rect.height, textBoxFor(rect))
+  }
 
   const auto = autopilot(state.seconds, state.layout)
   const following =
