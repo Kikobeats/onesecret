@@ -13,8 +13,6 @@ Put your app's passwords, tokens, and API keys in your repository, encrypted, ri
 - **One key for every environment.** Keep it in your password manager and in CI. It never goes into your app or your Docker image.
 - **Secrets and settings side by side.** Plain settings, like a port or a log level, live next to your secrets in one `config/` folder, and your app gets them all as one object.
 - **Production done right.** The recommended way to run secrets in production is as environment variables set by your hosting platform, never as a key on the server. onesecret follows that: when you deploy, it sends the values to your platform, and your servers never hold the key. If a server leaks, it leaks only its own values, not the key to everything else.
-- **Clear errors.** onesecret knows the name of every secret you store, so when one is missing at startup, the error names it.
-- **Fast.** Loading takes a few milliseconds.
 
 ## Install
 
