@@ -12,7 +12,7 @@ Commit your credentials encrypted next to your code, and keep a single age key t
 - **Layers.** `config/default.yml` and `config/default.enc.yml` hold what every environment shares, and `config/production.yml` and `config/production.enc.yml` override them for production. Plain settings and secrets live side by side, and `config()` returns them as one object.
 - **Production never needs the key.** Deploy pushes the decrypted values to the platform (a Kubernetes Secret, Fly secrets). At boot, `config()` sees every value already in the environment and decrypts nothing.
 - **Fails fast.** Secret names are stored in plaintext, so `config()` knows what must exist and names exactly what is missing.
-- **Fast.** About 5ms for the first `config()` call when it decrypts two layers, against roughly 30ms for spawning `sops -d` twice. See [Performance](#performance).
+- **Fast.** About 6ms for the first `config()` call when it decrypts two layers, against roughly 30ms for spawning `sops -d` twice. See [Performance](#performance).
 
 ## Contents
 
@@ -62,13 +62,16 @@ $ git add config
 **3. Load them as the first thing your app does.**
 
 ```js
-const config = require('onesecret').config()
+const onesecret = require('onesecret')
 
+const config = onesecret.config() // settings and secrets as one object
 console.log(config.DATABASE_URL)
+
+onesecret.env() // or put them in process.env, as dotenv does
 console.log(process.env.DATABASE_URL)
 ```
 
-`config()` reads the layer named by `NODE_ENV`. To pick another one, pass its name: `config('staging')`.
+Use either or both: each file is decrypted once per process. They read the layer named by `NODE_ENV`; to pick another one, pass its name: `config('staging')`.
 
 That is the whole setup: there is no other configuration file. [`example/`](https://github.com/Kikobeats/onesecret/tree/master/example) is a runnable app that shows each of these cases.
 
@@ -101,7 +104,7 @@ $ npx onesecret exec -- node server.js
 
 ### Run your tests
 
-Unit tests usually do not need real credentials. Set `ONESECRET_SKIP=1` and `config()` never decrypts: it still loads the plain settings, and leaves unset any secret the environment does not provide.
+Unit tests usually do not need real credentials. Set `ONESECRET_SKIP=1` and `config()` and `env()` never decrypt: they still load the plain settings, and leave unset any secret the environment does not provide.
 
 ```bash
 $ ONESECRET_SKIP=1 npm test
@@ -365,15 +368,17 @@ Every file is optional. They are merged in that order, so a later file wins, and
 
 Each encrypted file records the public key it is locked for, so a new layer such as `config/staging.enc.yml` is locked for the same key as `config/default.enc.yml` in its folder, with the same encryption rules. A file whose folder has no `default.enc.yml` is locked for the public key of the `SOPS_AGE_KEY` you exported.
 
-### What `config()` does at boot
+### What `config()` and `env()` do at boot
 
-`config()` reads the secret names (they are plaintext in the encrypted files) and checks `process.env`:
+Both read the secret names (they are plaintext in the encrypted files) and check `process.env`:
 
 1. Every secret is already set: nothing is decrypted, and the key is not needed. This is production. A variable set to an empty string counts as set.
-2. Some secrets are missing: it finds the age key, decrypts, and fills **only** the missing ones.
-3. Some secrets are missing and there is no key: it throws, naming each missing secret.
+2. Some secrets are missing: they find the age key and decrypt **only** for the missing ones. `config()` returns them; `env()` writes them into `process.env`.
+3. Some secrets are missing and there is no key: they throw, naming each missing secret.
 
-Values already in the environment always win, for plain settings too. In `production` and `staging`, `config()` never runs `keyCommand`, so a missing secret fails the boot instead of fetching a key.
+Values already in the environment always win, for plain settings too. In `production` and `staging`, neither runs `keyCommand`, so a missing secret fails the boot instead of fetching a key.
+
+`config()` never changes `process.env`, and `env()` changes nothing but `process.env`, or `options.processEnv` when given.
 
 ### Where the key comes from
 
@@ -397,7 +402,7 @@ With `keyCommand`, nobody keeps the key on disk. It is a command that prints the
 }
 ```
 
-It runs at most once per process, whether it succeeds or fails, and `config()` never runs it in `production` or `staging`. `load()` and the CLI (`exec`, `get`, `dotenv`) do run it in any env, since you call them on purpose.
+It runs at most once per process, whether it succeeds or fails, and `config()` and `env()` never run it in `production` or `staging`. The CLI (`exec`, `get`, `dotenv`) does run it in any env, since you call it on purpose.
 
 `keyCommand` comes from the project's `package.json`, so it has the same trust model as an npm script: only run onesecret in repositories you trust.
 
@@ -483,7 +488,7 @@ Examples
 
 ## API
 
-`config`, `load`, and `names` take the env name as a string, or these options:
+`config` and `env` take the env name as a string, or these options:
 
 | Option       | Default                            | Description                                           |
 | ------------ | ---------------------------------- | ----------------------------------------------------- |
@@ -491,26 +496,26 @@ Examples
 | `dir`        | `"config"`                         | Directory with the config files, relative to `cwd`.   |
 | `env`        | `NODE_ENV`, then `"development"`   | Layer merged on top of `default`.                     |
 | `keyCommand` | none                               | Command that prints the age key.                      |
-| `processEnv` | `process.env`                      | `config()` only: the environment to read and fill, including `NODE_ENV` and `ONESECRET_SKIP`. |
+| `processEnv` | `process.env`                      | `config()` and `env()`: the environment to read, including `NODE_ENV` and `ONESECRET_SKIP`, and the one `env()` writes. |
 
 `dir` and `keyCommand` can also be set in `package.json` under `"onesecret"`.
 
 ### config([env | options])
 
-Merges the layers, fills the missing values into `process.env` (or `options.processEnv`), and returns the merged object, with the values the environment already had taking their place. Throws an `OnesecretError` with code `EMISSING` when a secret is missing and there is no key to decrypt it.
+Merges the layers and returns the merged object, with the values the environment already had taking their place. It never changes `process.env`. Throws an `OnesecretError` with code `EMISSING` when a secret is missing and there is no key to decrypt it.
 
 ```js
 const config = require('onesecret').config() // NODE_ENV, then "development"
 const staging = require('onesecret').config('staging')
 ```
 
-### load([env | options])
+### env([env | options])
 
-Returns every layer merged and decrypted, ignoring `process.env`. Values keep their YAML type.
+Writes every value missing from `process.env` (or `options.processEnv`) into it, as a string: the same values `config()` would add on top of the environment. It follows the same rules and throws the same errors as `config()`, writes nothing when it throws, and returns nothing.
 
-### names([env | options])
-
-Returns the secret names, without needing the key.
+```js
+require('onesecret').env()
+```
 
 ### toEnv(secrets), toDotenv(secrets), checksum(secrets), withoutAgeKey(env)
 
@@ -540,9 +545,9 @@ A secret must be a string, number, or boolean, since the platform injects it as 
 
 ### Types and `process.env`
 
-- Every top-level value that is a string, number, boolean, or `null` is written into `process.env` as a string.
-- `config()` returns the merged object with the YAML types kept, so `TIMEOUT: 60000` comes back as the number `60000`, while `process.env.TIMEOUT` is `"60000"`.
-- Nested objects and lists, and names that are not valid variable names (such as `log-level`), are returned but not written into `process.env`.
+- `env()` writes every top-level value that is a string, number, boolean, or `null` into `process.env`, as a string.
+- `config()` returns the merged object with the YAML types kept, so `TIMEOUT: 60000` comes back as the number `60000`, while `env()` sets `process.env.TIMEOUT` to `"60000"`.
+- Nested objects and lists, and names that are not valid variable names (such as `log-level`), are returned by `config()` but never written into `process.env`.
 - A value the environment provides comes back with its file's type when the string matches it, so `PORT=3000` is the number `3000` again, even for a secret, whose type is plaintext in the encrypted file.
 
 ### File rules
@@ -561,7 +566,7 @@ A source can hold several keys, one per line or separated by spaces. Post-quantu
 
 ### Performance
 
-After about 9ms to load the module, the first `config()` call takes about 5ms when it decrypts two layers, against roughly 30ms for spawning `sops -d` twice, and about 4ms when the platform already injected every secret and nothing is decrypted. Later calls take about 0.3ms.
+After about 9ms to load the module, the first `config()` call takes about 6ms when it decrypts two layers, against roughly 30ms for spawning `sops -d` twice, and about 3.5ms when the platform already injected every secret and nothing is decrypted. Each file is decrypted once per process, so later calls, including `env()` after `config()`, take about 1ms.
 
 ### Compatibility
 

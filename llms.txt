@@ -5,7 +5,7 @@
 Commit your credentials encrypted next to your code as SOPS files, and keep a single age key to read them. Encryption and decryption run in Node.js, so the sops and age binaries are not needed, and the sops CLI keeps working on the same files.
 
 - One age key decrypts every environment.
-- Layers: config/default.yml and config/default.enc.yml are shared, config/<env>.yml and config/<env>.enc.yml override them, and config() returns one merged object.
+- Layers: config/default.yml and config/default.enc.yml are shared, config/<env>.yml and config/<env>.enc.yml override them. config() returns one merged object, and env() writes the values into process.env.
 - Production never needs the key: deploys push the decrypted values to the platform (Kubernetes, Fly.io, Vercel, Netlify, Cloudflare, AWS, Google Cloud Run, and more) with dotenv --json, and config() decrypts nothing when every secret is already in the environment.
 - config() fails at boot naming every missing secret.
 

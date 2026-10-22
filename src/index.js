@@ -1,6 +1,6 @@
 'use strict'
 
-const { config, load, names } = require('./secrets')
+const { config, env } = require('./secrets')
 const { checksum, toDotenv, toEnv } = require('./format')
 const { withoutAgeKey } = require('./keys')
 const { OnesecretError } = require('./error')
@@ -8,8 +8,7 @@ const { OnesecretError } = require('./error')
 module.exports = {
   checksum,
   config,
-  load,
-  names,
+  env,
   toDotenv,
   toEnv,
   withoutAgeKey,

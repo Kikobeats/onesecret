@@ -1,5 +1,6 @@
 'use strict'
 
+const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const sops = require('./sops')
@@ -65,19 +66,22 @@ const readLayer = (dir, name) => {
     plainFile,
     encryptedFile,
     values: plainFile ? store.readPlain(plainFile) : {},
-    document: encryptedFile ? readEncrypted(encryptedFile) : null
+    ...(encryptedFile ? readEncrypted(encryptedFile) : { document: null })
   }
 }
 
+const sha256 = data => crypto.createHash('sha256').update(data).digest('hex')
+
 const readEncrypted = file => {
-  const document = store.readDocument(file)
-  if (document === null) return null
+  const text = fs.readFileSync(file, 'utf8')
+  const document = store.parseDocument(file, text)
+  if (document === null) return { document: null }
   try {
     sops.names(document)
   } catch (error) {
     throw new OnesecretError(`${file}: ${error.reason}`, error.code)
   }
-  return document
+  return { document, contentHash: sha256(text) }
 }
 
 const readLayers = input => {
@@ -128,6 +132,39 @@ const decryptDocuments = (documents, keyCommand, keyOptions) => {
 const decryptDocument = (document, keyCommand) =>
   decryptDocuments([document], keyCommand)[0]
 
+const decryptedByFile = new Map()
+
+const fingerprintOf = identities =>
+  sha256(
+    identities
+      .map(identity => Buffer.from(identity).toString('hex'))
+      .sort()
+      .join('\n')
+  )
+
+const decryptOnce = (layers, keyCommand, keyOptions) => {
+  const encrypted = layers.filter(({ document }) => document)
+  if (encrypted.length === 0) return []
+  return withIdentities(
+    keyCommand,
+    identities => {
+      const fingerprint = fingerprintOf(identities)
+      return encrypted.map(({ encryptedFile, contentHash, document }) => {
+        const key = `${fingerprint}:${contentHash}`
+        const cached = decryptedByFile.get(encryptedFile)
+        if (cached?.key !== key) {
+          decryptedByFile.set(encryptedFile, {
+            key,
+            value: sops.decrypt(document, identities)
+          })
+        }
+        return structuredClone(decryptedByFile.get(encryptedFile).value)
+      })
+    },
+    keyOptions
+  )
+}
+
 const UNSAFE_NAME = '__proto__'
 
 const assign = (target, name, value) =>
@@ -177,8 +214,6 @@ const pick = (values, names) => {
   return picked
 }
 
-const names = input => secretNamesOf(readLayers(input).layers)
-
 const namesOf = layered => secretNamesOf(layered.layers)
 
 const requireEnvLayer = (layered, message) => {
@@ -190,9 +225,7 @@ const requireEnvLayer = (layered, message) => {
 }
 
 const loadLayers = ({ layers, keyCommand }) =>
-  mergeLayers(layers, decryptDocuments(documentsOf(layers), keyCommand))
-
-const load = input => loadLayers(readLayers(input))
+  mergeLayers(layers, decryptOnce(layers, keyCommand))
 
 const get = (input, name) => {
   const layered = readLayers(input)
@@ -222,9 +255,7 @@ const decryptForConfig = (
   allowKeyCommand = !DEPLOYED_ENVS.includes(env)
 ) => {
   try {
-    return decryptDocuments(documentsOf(layers), keyCommand, {
-      allowKeyCommand
-    })
+    return decryptOnce(layers, keyCommand, { allowKeyCommand })
   } catch (error) {
     if (!KEY_ERRORS.includes(error.code)) throw error
     const verb = missing.length === 1 ? 'is' : 'are'
@@ -288,15 +319,13 @@ const assertScalarSecrets = (secrets, missing) => {
   }
 }
 
-const config = input => fill(input)
-
-const fill = (input, { allowKeyCommand } = {}) => {
+const resolve = (input, { allowKeyCommand } = {}) => {
   const options = optionsOf(input)
   const target = options.processEnv || process.env
   const skip = target[SKIP_VARIABLE] === '1'
   const layered = readLayers(options)
   if (!hasFiles(layered.layers)) {
-    if (skip) return {}
+    if (skip) return { target, result: {}, missing: {} }
     throw new OnesecretError(
       `no config files for "default" or "${layered.env}" found in ${layered.dir}`,
       'EMISSING'
@@ -311,6 +340,7 @@ const fill = (input, { allowKeyCommand } = {}) => {
       : null
   const merged = mergeLayers(layered.layers, decrypted)
   const result = {}
+  const missingValues = {}
   for (const name of nameOrder(layered.layers)) {
     if (!isUnset(target, name)) {
       assign(
@@ -321,23 +351,34 @@ const fill = (input, { allowKeyCommand } = {}) => {
     } else if (Object.hasOwn(merged, name)) {
       const value = merged[name]
       assign(result, name, value)
-      if (isExportable(name, value)) target[name] = toEnvValue(name, value)
+      if (isExportable(name, value)) {
+        assign(missingValues, name, toEnvValue(name, value))
+      }
     }
   }
-  return result
+  return { target, result, missing: missingValues }
 }
+
+const config = input => resolve(input).result
+
+const writeEnv = (input, options) => {
+  const { target, missing } = resolve(input, options)
+  for (const [name, value] of Object.entries(missing)) target[name] = value
+}
+
+const env = input => writeEnv(input)
 
 module.exports = {
   assertEnv,
   config,
   decryptDocument,
-  fill,
+  env,
   get,
-  load,
+  loadLayers,
   loadSecrets,
-  names,
   namesOf,
   requireEnvLayer,
   readLayers,
+  writeEnv,
   resolveOptions
 }

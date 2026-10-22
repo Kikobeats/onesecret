@@ -221,7 +221,7 @@ const exec = (flags, command) => {
   if (command.length === 0) usage('exec needs a command after --')
   const env = withoutAgeKey(process.env)
   if (flags.env) env.NODE_ENV = flags.env
-  secrets.fill(
+  secrets.writeEnv(
     { ...readOptions(flags), processEnv: env },
     { allowKeyCommand: true }
   )
