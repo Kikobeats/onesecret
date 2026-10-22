@@ -543,7 +543,11 @@ main > .content {
   position: absolute;
   right: 14px;
   text-transform: uppercase;
-  top: 10px;
+  top: 6px;
+}
+
+.markdown-section pre[data-lang='markup']::before {
+  content: none;
 }
 
 .markdown-section pre:hover::before {
@@ -557,7 +561,7 @@ main > .content {
   display: block;
   font-size: 0.8rem;
   line-height: 1.65;
-  padding: 30px 20px 18px;
+  padding: 22px 20px;
   white-space: pre;
 }
 
