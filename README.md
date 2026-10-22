@@ -10,7 +10,7 @@ Put your app's passwords, tokens, and API keys in your repository, encrypted, ri
 
 ## Why onesecret
 
-- **Your secrets are never exposed.** In the repository they are always encrypted, so anyone who sees the code, a fork, or the git history sees nothing usable. In production your hosting platform holds the values as environment variables, the standard way to run secrets, and the key never reaches your servers. If a server leaks, it leaks only its own values.
+- **Your secrets are never exposed in your repository.** They are always encrypted there, so anyone who sees the code, a fork, or the git history sees nothing usable. In production your hosting platform holds the values as environment variables, the standard way to run secrets, and the key never reaches your servers. If a server leaks, it leaks only its own values.
 - **One key unlocks everything.** Every secret, in every environment, opens with the same key. Onboarding a teammate or a CI job means sharing that one key, and nothing else.
 - **Works on any platform.** Your app reads plain environment variables, which every host supports: Vercel, Fly.io, Kubernetes, AWS, Docker, or your own server. There is no secrets service to sign up for, pay for, or migrate away from.
 - **Versioned with your code.** Secrets and plain settings live side by side in one `config/` folder, so a change ships in the same commit and pull request as the code that needs it, with history and review.
@@ -35,7 +35,8 @@ private key  AGE-SECRET-KEY-1…
 secrets      config/default.enc.yml
 
 The private key is the only secret to keep: it decrypts all the others.
-It is shown only now and saved nowhere. To use it in this shell:
+It is shown only now and saved nowhere, so store it safely (and as
+SOPS_AGE_KEY in CI). To use it in this shell:
 
 export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 ```

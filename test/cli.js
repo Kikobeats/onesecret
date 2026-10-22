@@ -863,7 +863,8 @@ test('init prints where everything went', t => {
   t.regex(lines[1], /^private key {2}AGE-SECRET-KEY-1\w+$/)
   t.is(lines[2], 'secrets      config/default.enc.yml')
   t.regex(lines[4], /only secret to keep/)
-  t.regex(lines[5], /shown only now and saved nowhere/)
+  t.regex(lines[5], /shown only now and saved nowhere, so store it safely/)
+  t.regex(lines[6], /SOPS_AGE_KEY in CI/)
   t.is(lines.at(-1), `  export SOPS_AGE_KEY=${lines[1].split(/\s+/).at(-1)}`)
 })
 
