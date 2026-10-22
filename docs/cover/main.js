@@ -22,14 +22,6 @@ const TAGLINE_SCRAMBLE = {
   range: BASE64_CHARS,
   ignore: [' ', '\u00a0']
 }
-const COMMAND_SCRAMBLE = {
-  speed: 1,
-  step: 4,
-  seed: 1,
-  scramble: 3,
-  overdrive: false,
-  range: BASE64_CHARS
-}
 const DPR_RANGE = [1, 2]
 const POINTER_IDLE_SECONDS = 2.8
 const FOLLOW_STIFFNESS = 3.2
@@ -42,7 +34,7 @@ const textBlock = cover.querySelector('[data-cover-text]')
 const MAX_TILT = 0.05
 
 scrambleTagline()
-setupTabs()
+setupCopy()
 start().catch(error =>
   showFallback(`init-failed: ${error?.code ?? error?.message ?? error}`)
 )
@@ -326,41 +318,14 @@ async function copyText (button, text) {
   setTimeout(() => delete button.dataset.copied, COPIED_MS)
 }
 
-function setupTabs () {
-  const tabs = [...cover.querySelectorAll('[role=tab]')]
-  const panel = cover.querySelector('[role=tabpanel]')
+function setupCopy () {
   const command = cover.querySelector('[data-command]')
   const copy = cover.querySelector('[data-copy]')
   const copyPrompt = cover.querySelector('[data-copy-prompt]')
   const copyPromptLabel = copyPrompt.querySelector('[data-copy-prompt-label]')
-  const promptTab = tabs.find(tab => tab.dataset.kind === 'prompt')
-  const scramble = createScramble(command, COMMAND_SCRAMBLE)
-  let selected = tabs.find(tab => tab.getAttribute('aria-selected') === 'true')
-  const select = tab => {
-    tabs.forEach(other => {
-      const active = other === tab
-      other.setAttribute('aria-selected', String(active))
-      other.tabIndex = active ? 0 : -1
-    })
-    if (tab === selected) return
-    selected = tab
-    panel.dataset.kind = tab.dataset.kind
-    if (tab.dataset.kind === 'command') scramble.play(tab.dataset.value)
-  }
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => select(tab))
-    tab.addEventListener('keydown', event => {
-      const delta =
-        event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
-      if (!delta) return
-      const next = tabs[(index + delta + tabs.length) % tabs.length]
-      select(next)
-      next.focus()
-    })
-  })
-  copy.addEventListener('click', () => copyText(copy, selected.dataset.value))
+  copy.addEventListener('click', () => copyText(copy, command.textContent))
   copyPrompt.addEventListener('click', async () => {
-    await copyText(copyPrompt, promptTab.dataset.value)
+    await copyText(copyPrompt, copyPrompt.dataset.prompt)
     copyPromptLabel.textContent =
       copyPrompt.dataset.copied === 'true' ? 'Copied' : 'Copy prompt'
     setTimeout(() => (copyPromptLabel.textContent = 'Copy prompt'), COPIED_MS)
