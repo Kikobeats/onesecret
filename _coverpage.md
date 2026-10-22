@@ -16,12 +16,12 @@
       <p class="cover__tagline">Keep just one secret to decrypt the&nbsp;rest.</p>
       <div class="cover__install">
         <div class="cover__tabs" role="tablist" aria-label="Get onesecret">
-          <button type="button" role="tab" aria-selected="true" data-kind="prompt" data-value="Migrate this project to onesecret" data-copy-text="Migrate this project to onesecret. Follow https://kikobeats.github.io/onesecret/migrate.md step by step.">Prompt</button>
+          <button type="button" role="tab" aria-selected="true" data-kind="prompt" data-value="Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/&lt;env&gt;.yml, encrypt secrets with npx onesecret set --env &lt;env&gt; NAME=value, replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.">Prompt</button>
           <span class="cover__dot" aria-hidden="true">·</span>
           <button type="button" role="tab" aria-selected="false" tabindex="-1" data-kind="command" data-value="npm install onesecret">npm</button>
         </div>
         <div class="cover__command" role="tabpanel" data-kind="prompt">
-          <code data-command>Migrate this project to onesecret</code>
+          <code data-command>Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/&lt;env&gt;.yml, encrypt secrets with npx onesecret set --env &lt;env&gt; NAME=value, replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.</code>
           <button type="button" class="cover__copy" data-copy aria-label="Copy command">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg>
           </button>

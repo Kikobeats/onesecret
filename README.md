@@ -126,10 +126,10 @@ $ npx onesecret set --env staging DATABASE_URL=postgres://db.staging/app
 Give your coding agent this prompt:
 
 ```
-Migrate this project to onesecret. Follow https://kikobeats.github.io/onesecret/migrate.md step by step.
+Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/<env>.yml, encrypt secrets with npx onesecret set --env <env> NAME=value, replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.
 ```
 
-[The migration guide](migrate.md) has it inventory your `.env` files and platform secrets, encrypt the secrets with `set`, swap the loader for `env()` or `config()`, and check every value against the old ones without printing any.
+For a larger project, [the migration guide](migrate.md) is the detailed checklist: platform secrets, tests, CI, deploys, and cleanup.
 
 ## Deploy
 

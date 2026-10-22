@@ -184,6 +184,13 @@
 .cover__command[data-kind="prompt"] code::before {
   content: "› ";
 }
+.cover__command[data-kind="prompt"] { align-items: flex-start; }
+.cover__command[data-kind="prompt"] code {
+  font-family: var(--cover-font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: normal;
+}
 
 .cover__copy {
   flex: none;
