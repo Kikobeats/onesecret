@@ -26,7 +26,9 @@ const setThroughStdin = (args, options) => {
       continue
     }
     const separator = args[i].indexOf('=')
-    if (separator === -1) { throw new Error(`setThroughStdin needs NAME=value, got ${args[i]}`) }
+    if (separator === -1) {
+      throw new Error(`setThroughStdin needs NAME=value, got ${args[i]}`)
+    }
     pairs.push([args[i].slice(0, separator), args[i].slice(separator + 1)])
   }
   let result
@@ -1459,4 +1461,104 @@ test('set shows a null value as empty, not as the text null', t => {
     if (previousKey === undefined) delete process.env.SOPS_AGE_KEY
     else process.env.SOPS_AGE_KEY = previousKey
   }
+})
+
+const terminalCli = (args, { cwd, env, editor }) => {
+  const childEnv = { ...process.env, ...env, EDITOR: editor }
+  delete childEnv.VISUAL
+  const result = require('node:child_process').spawnSync(
+    'python3',
+    [
+      '-c',
+      [
+        'import os, sys, pty',
+        'cmd = sys.argv[1:]',
+        'pid, fd = pty.fork()',
+        'if pid == 0:',
+        '    try:',
+        '        os.execv(cmd[0], cmd)',
+        '    finally:',
+        '        os._exit(127)',
+        'while True:',
+        '    try:',
+        '        chunk = os.read(fd, 4096)',
+        '    except OSError:',
+        '        break',
+        '    if not chunk:',
+        '        break',
+        '    sys.stdout.buffer.write(chunk)',
+        '_, status = os.waitpid(pid, 0)',
+        'sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)'
+      ].join('\n'),
+      process.execPath,
+      BIN,
+      ...args
+    ],
+    { cwd, env: childEnv, encoding: 'utf8' }
+  )
+  return {
+    code: result.status,
+    stdout: (result.stdout || '').replaceAll('\r', '').trim(),
+    stderr: `${result.stderr || ''}${result.error || ''}`.trim()
+  }
+}
+
+test('an empty editor save cancels a missing or null secret and leaves a blank value unchanged', t => {
+  const age = require('../src/age')
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const cwd = temporaryDir('set-blank')
+  const env = freshHome()
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  const blankEditor = script => fakeBinary('blank-set-editor', script).file
+  const setInTerminal = (name, editor) =>
+    terminalCli(['set', name], { cwd, env, editor })
+  init(cwd, env)
+  t.is(
+    setInTerminal(
+      'TOKEN',
+      blankEditor("require('fs').writeFileSync(process.argv[2], 'kept\\n')")
+    ).stdout,
+    'config/default.enc.yml encrypted'
+  )
+  t.is(rawCli(['get', 'TOKEN'], { cwd, env }).rawStdout, 'kept')
+
+  const kept = fs.readFileSync(file, 'utf8')
+  for (const script of [
+    "require('fs').writeFileSync(process.argv[2], '\\n')",
+    "require('fs').writeFileSync(process.argv[2], '\\r\\n')",
+    "require('fs').writeFileSync(process.argv[2], '')"
+  ]) {
+    const cancelled = setInTerminal('GHOST', blankEditor(script))
+    t.is(cancelled.code, 0, cancelled.stderr)
+    t.is(cancelled.stdout, 'GHOST not set, the value was empty')
+    t.is(fs.readFileSync(file, 'utf8'), kept)
+  }
+  const cleared = setInTerminal(
+    'TOKEN',
+    blankEditor("require('fs').writeFileSync(process.argv[2], '\\n')")
+  )
+  t.is(cleared.stdout, 'TOKEN not set, the value was empty')
+  t.is(rawCli(['get', 'TOKEN'], { cwd, env }).rawStdout, 'kept')
+
+  store.writeDocument(
+    file,
+    sops.encrypt(
+      { NOTHING: null, EMPTY: '' },
+      { recipients: [age.recipientOf(env.SOPS_AGE_KEY)] }
+    )
+  )
+  const blanks = fs.readFileSync(file, 'utf8')
+  const editor = blankEditor(
+    "require('fs').writeFileSync(process.argv[2], '\\n')"
+  )
+  t.is(
+    setInTerminal('NOTHING', editor).stdout,
+    'NOTHING not set, the value was empty'
+  )
+  t.is(
+    setInTerminal('EMPTY', editor).stdout,
+    'EMPTY unchanged in config/default.enc.yml'
+  )
+  t.is(fs.readFileSync(file, 'utf8'), blanks)
 })

@@ -179,10 +179,12 @@ const set = (options, layer, name, readValue) => {
   const previous = current.tree[name]
   const shown =
     previous === undefined || previous === null ? '' : String(previous)
-  const value = readValue(previous === undefined ? undefined : shown)
-  if (value === null) return { file: current.file, status: 'cancelled' }
+  const value = readValue(shown)
   if (previous !== undefined && previous !== null && shown === value) {
     return { file: current.file, status: 'unchanged' }
+  }
+  if (value === null || value === '') {
+    return { file: current.file, status: 'cancelled' }
   }
   writeLayer(current, { ...current.tree, [name]: value })
   return { file: current.file, status: 'encrypted' }
