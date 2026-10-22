@@ -1,0 +1,21 @@
+# onesecret
+
+> Keep just one secret to decrypt the rest: SOPS + age secrets for Node.js, with no binaries to install.
+
+Commit your credentials encrypted next to your code as SOPS files, and keep a single age key to read them. Encryption and decryption run in Node.js, so the sops and age binaries are not needed, and the sops CLI keeps working on the same files.
+
+- One age key decrypts every environment.
+- Layers: config/default.yml and config/default.enc.yml are shared, config/<env>.yml and config/<env>.enc.yml override them, and config() returns one merged object.
+- Production never needs the key: deploys push the decrypted values to Kubernetes, Fly.io, or a dotenv file, and config() decrypts nothing when every secret is already in the environment.
+- config() fails at boot naming every missing secret.
+
+## Docs
+
+- [Full documentation (Markdown)](https://kikobeats.github.io/onesecret/README.md)
+- [Documentation site](https://kikobeats.github.io/onesecret/)
+
+## Source
+
+- [GitHub](https://github.com/Kikobeats/onesecret)
+- [npm](https://www.npmjs.com/package/onesecret)
+- [Runnable example](https://github.com/Kikobeats/onesecret/tree/master/example)

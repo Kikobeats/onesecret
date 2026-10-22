@@ -70,7 +70,7 @@ console.log(process.env.DATABASE_URL)
 
 `config()` reads the layer named by `NODE_ENV`. To pick another one, pass its name: `config('staging')`.
 
-That is the whole setup: there is no other configuration file. [`example/`](example) is a runnable app that shows each of these cases.
+That is the whole setup: there is no other configuration file. [`example/`](https://github.com/Kikobeats/onesecret/tree/master/example) is a runnable app that shows each of these cases.
 
 ## Everyday use
 
