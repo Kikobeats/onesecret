@@ -51,6 +51,25 @@ const watchSearchResults = () => {
   })
 }
 
+const COVER_MODULE = 'docs/cover/main.js'
+
+let coverStarted = false
+
+const startCover = () => {
+  if (coverStarted || !document.querySelector('[data-cover]')) return false
+  coverStarted = true
+  import(new URL(COVER_MODULE, document.baseURI).href)
+  return true
+}
+
+const startCoverWhenRendered = () => {
+  if (startCover()) return
+  const observer = new window.MutationObserver(() => {
+    if (startCover()) observer.disconnect()
+  })
+  observer.observe(document.body, { childList: true, subtree: true })
+}
+
 const enhancePage = () => {
   document.querySelector('#seo-content')?.remove()
   markSignatures()
@@ -76,6 +95,7 @@ window.$docsify = {
   plugins: [
     hook => {
       hook.doneEach(enhancePage)
+      hook.ready(startCoverWhenRendered)
       hook.ready(watchSearchResults)
     }
   ]
