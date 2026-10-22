@@ -42,6 +42,16 @@ The private key is the only secret you need to keep: it decrypts all the others.
 
 **2. Add your settings and secrets, then commit them.**
 
+Everything lives in the `config/` folder. Plain settings go in `.yml` files, secrets go encrypted in `.enc.yml` files, and each file name is an environment. This step ends with:
+
+```
+config/default.yml          ← PORT, for every environment
+config/default.enc.yml      ← DATABASE_URL, encrypted, for every environment
+config/production.enc.yml   ← DATABASE_URL, encrypted, for production only
+```
+
+`default` is the base. An environment such as `production` adds its own values on top and wins where both have the same name.
+
 Run the `export` line that `init` printed, then:
 
 ```bash
@@ -52,16 +62,6 @@ $ git add config && git commit -m "Add config"
 ```
 
 `set` opens your editor (`$VISUAL` or `$EDITOR`, otherwise `vi`) for the value, so it never ends up in your shell history. In a script, pipe it in instead: `printf %s "$VALUE" | npx onesecret set NAME`.
-
-Your `config/` folder now looks like this:
-
-```
-config/default.yml          ← PORT, for every environment
-config/default.enc.yml      ← DATABASE_URL, encrypted, for every environment
-config/production.enc.yml   ← DATABASE_URL, encrypted, for production only
-```
-
-`default` is the base. An environment such as `production` adds its own values on top and wins where both have the same name.
 
 **3. Load them when your app starts.**
 
