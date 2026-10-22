@@ -67,7 +67,8 @@ async function renderSequence (gpu, out) {
     .toFile(`${out}/reveal-sequence.png`)
 }
 
-if (fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+const entry = process.argv[1]
+if (entry && fileURLToPath(import.meta.url) === resolve(entry)) {
   const mode = process.argv[2] ?? 'all'
   const out = process.argv[3] ?? ROOT
   const gpu = await vgpu.init()
