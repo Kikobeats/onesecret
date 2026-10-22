@@ -60,6 +60,8 @@ const enhancePage = () => {
 window.$docsify = {
   name: 'onesecret',
   repo: 'kikobeats/onesecret',
+  coverpage: true,
+  onlyCover: false,
   maxLevel: 3,
   auto2top: true,
   noEmoji: true,
