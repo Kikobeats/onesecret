@@ -75,6 +75,12 @@ const layerOfFile = file => {
   return (ENCRYPTED_FILE.exec(name) || PLAIN_FILE.exec(name))[1]
 }
 
+const encryptedFilesIn = dir =>
+  [...namesIn(dir)]
+    .filter(name => ENCRYPTED_FILE.test(name))
+    .sort()
+    .map(name => path.join(dir, name))
+
 const fileKindOf = file => {
   const name = path.basename(file)
   if (ENCRYPTED_FILE.test(name)) return 'encrypted'
@@ -234,10 +240,9 @@ module.exports = {
   DEFAULT_LAYER,
   SOPS_CONFIG,
   creationRule,
-  readSopsConfig,
+  encryptedFilesIn,
   fileKindOf,
   findLayerFile,
-  findSopsConfig,
   findPlainFile,
   isMapping,
   layerOfFile,

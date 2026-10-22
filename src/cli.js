@@ -239,15 +239,19 @@ const exec = (flags, command) => {
 const COMMANDS = {
   init: flags => {
     const result = write.initialize(writeOptions(flags))
-    if (!result.created) {
-      return `already initialized for ${result.recipient} (${relative(
-        result.sopsConfigFile
-      )})`
+    if (result.status === 'existing') {
+      return `already initialized for ${result.recipients.join(
+        ','
+      )} (${relative(result.defaultFile)})`
+    }
+    if (result.status === 'adopted') {
+      return `created ${relative(
+        result.defaultFile
+      )} for ${result.recipients.join(',')} (from ${result.source})`
     }
     return [
-      `public key   ${result.recipient}`,
+      `public key   ${result.recipients[0]}`,
       `private key  ${result.identity}`,
-      `sops config  ${relative(result.sopsConfigFile)}`,
       `secrets      ${relative(result.defaultFile)}`,
       '',
       'The private key is shown only now and is not saved anywhere. Keep it in your',

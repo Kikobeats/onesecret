@@ -15,6 +15,11 @@ const {
 
 const withKey = { SOPS_AGE_KEY: FIXTURE_KEY }
 
+const recipientsIn = file =>
+  yaml
+    .load(fs.readFileSync(file, 'utf8'))
+    .sops.age.map(({ recipient }) => recipient)
+
 const init = (cwd, env, args = []) => {
   const result = cli(['init', ...args], { cwd, env })
   const [key] = result.stdout.match(/AGE-SECRET-KEY-1\w+/) || []
@@ -27,7 +32,7 @@ const freshHome = () => {
   return { HOME: home, XDG_CONFIG_HOME: path.join(home, '.config') }
 }
 
-test('init prints a new key without saving it, writes .sops.yaml and an empty default layer, then leaves them alone', t => {
+test('init prints a new key without saving it, writes only an empty default layer, then leaves it alone', t => {
   const cwd = temporaryDir('init')
   const env = freshHome()
   const first = cli(['init'], { cwd, env })
@@ -38,19 +43,19 @@ test('init prints a new key without saving it, writes .sops.yaml and an empty de
   t.regex(first.stdout, new RegExp(`^  export SOPS_AGE_KEY=${key}$`, 'm'))
   t.false(fs.existsSync(path.join(env.XDG_CONFIG_HOME, 'sops')))
   t.false(fs.existsSync(path.join(env.HOME, 'Library')))
-  const sopsConfig = yaml.load(
-    fs.readFileSync(path.join(cwd, '.sops.yaml'), 'utf8')
-  )
-  t.deepEqual(sopsConfig.creation_rules, [
-    { path_regex: '^config/[^/]+\\.enc\\.(ya?ml|json)$', age: recipient }
+  t.false(fs.existsSync(path.join(cwd, '.sops.yaml')))
+  t.deepEqual(fs.readdirSync(cwd), ['config'])
+  t.deepEqual(recipientsIn(path.join(cwd, 'config', 'default.enc.yml')), [
+    recipient
   ])
-  t.true(fs.existsSync(path.join(cwd, 'config', 'default.enc.yml')))
   t.is(cli(['set', 'A=1'], { cwd, env }).code, 1)
   t.is(cli(['set', 'A=1'], { cwd, env: { ...env, SOPS_AGE_KEY: key } }).code, 0)
 
   const again = cli(['init'], { cwd, env })
-  t.regex(again.stdout, /already initialized/)
-  t.notRegex(again.stdout, /AGE-SECRET-KEY/)
+  t.is(
+    again.stdout,
+    `already initialized for ${recipient} (config/default.enc.yml)`
+  )
 })
 
 test('set, get, ls, unset, and dotenv work across layers', t => {
@@ -113,14 +118,21 @@ test('ls works without the key and get explains how to provide one', t => {
   t.regex(result.stderr, /no age key found/)
 })
 
-test('writing without .sops.yaml reuses the recipients of the existing file', t => {
+test('without .sops.yaml, a new layer takes the recipients of the default layer', t => {
   const cwd = project({ fixture: 'app' })
   t.is(cli(['set', 'NEW=1'], { cwd, env: withKey }).code, 0)
   t.is(cli(['get', 'NEW'], { cwd, env: withKey }).stdout, '1')
-  t.regex(
-    cli(['set', '-e', 'staging', 'A=1'], { cwd, env: withKey }).stderr,
-    /run "onesecret init" first/
+  const other = require('../src/age').generateIdentity()
+  const result = cli(['set', '-e', 'staging', 'A=1'], {
+    cwd,
+    env: { SOPS_AGE_KEY: other }
+  })
+  t.is(result.code, 0, result.stderr)
+  t.deepEqual(
+    recipientsIn(path.join(cwd, 'config', 'staging.enc.yml')),
+    recipientsIn(path.join(cwd, 'config', 'default.enc.yml'))
   )
+  t.is(cli(['get', '-e', 'staging', 'A'], { cwd, env: withKey }).stdout, '1')
 })
 
 test('rekey re-encrypts with the .sops.yaml recipients', t => {
@@ -372,21 +384,16 @@ test('dotenv output reads back to the same values', t => {
   t.deepEqual({ ...require('node:util').parseEnv(stdout) }, values)
 })
 
-test('init keeps the comments of an existing .sops.yaml', t => {
-  const cwd = temporaryDir('init-comments')
+test('init never touches an existing .sops.yaml', t => {
+  const cwd = temporaryDir('init-existing')
   const env = freshHome()
   const original =
     '# team keys, ask ops before editing\ncreation_rules:\n    # infra files\n    - path_regex: infra/.*\n      age: age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq\n'
   fs.writeFileSync(path.join(cwd, '.sops.yaml'), original)
   t.is(init(cwd, env).code, 0)
-  const text = fs.readFileSync(path.join(cwd, '.sops.yaml'), 'utf8')
-  t.true(
-    text.startsWith(
-      '# team keys, ask ops before editing\ncreation_rules:\n    - path_regex: "^config/'
-    )
-  )
-  t.true(text.includes('    # infra files\n    - path_regex: infra/.*'))
-  t.is(yaml.load(text).creation_rules.length, 2)
+  t.is(fs.readFileSync(path.join(cwd, '.sops.yaml'), 'utf8'), original)
+  t.is(cli(['set', '-e', 'production', 'A=1'], { cwd, env }).code, 0)
+  t.is(cli(['get', '-e', 'production', 'A'], { cwd, env }).stdout, '1')
 })
 
 test('writes refuse to drop KMS or PGP keys from a file', t => {
@@ -459,16 +466,21 @@ test('an interrupted edit leaves no plaintext behind', async t => {
   t.deepEqual(fs.readdirSync(workspaceRoot), [])
 })
 
-test('init quotes and anchors unusual directory names, and writes nothing when it fails', t => {
+test('init works with an unusual directory name and writes nothing when it fails', t => {
   const cwd = temporaryDir('init-dir')
   const env = freshHome()
   const result = init(cwd, env, ['--dir', "@odd'dir"])
   t.is(result.code, 0, result.stderr)
-  const rule = yaml.load(fs.readFileSync(path.join(cwd, '.sops.yaml'), 'utf8'))
-    .creation_rules[0]
-  t.true(rule.path_regex.startsWith("^@odd'dir/"))
+  t.false(fs.existsSync(path.join(cwd, '.sops.yaml')))
   t.is(cli(['set', '--dir', "@odd'dir", 'A=1'], { cwd, env }).code, 0)
   t.is(cli(['get', '--dir', "@odd'dir", 'A'], { cwd, env }).stdout, '1')
+
+  const blocked = temporaryDir('init-blocked')
+  fs.writeFileSync(path.join(blocked, 'config'), 'not a directory')
+  const failed = cli(['init'], { cwd: blocked, env: freshHome() })
+  t.is(failed.code, 1)
+  t.notRegex(failed.stdout, /AGE-SECRET-KEY/)
+  t.deepEqual(fs.readdirSync(blocked), ['config'])
 })
 
 test('.sops.yaml can use anchors and Go regular expressions', t => {
@@ -767,9 +779,8 @@ test('init prints where everything went', t => {
   const lines = init(cwd, env).stdout.split('\n')
   t.regex(lines[0], /^public key {3}age1\w+$/)
   t.regex(lines[1], /^private key {2}AGE-SECRET-KEY-1\w+$/)
-  t.is(lines[2], 'sops config  .sops.yaml')
-  t.is(lines[3], 'secrets      config/default.enc.yml')
-  t.regex(lines[5], /shown only now and is not saved anywhere/)
+  t.is(lines[2], 'secrets      config/default.enc.yml')
+  t.regex(lines[4], /shown only now and is not saved anywhere/)
   t.is(lines.at(-1), `  export SOPS_AGE_KEY=${lines[1].split(/\s+/).at(-1)}`)
 })
 
@@ -1026,24 +1037,140 @@ test('writes refuse a layer file whose name differs only in letter case', t => {
   }
 })
 
-test('a failed init leaves no orphan files, and a second init completes a missing default layer', t => {
-  const cwd = temporaryDir('init-fail')
-  const env = freshHome()
-  fs.mkdirSync(path.join(cwd, '.sops.yaml'))
-  t.is(cli(['init'], { cwd, env }).code, 1)
-  t.false(fs.existsSync(path.join(cwd, 'config', 'default.enc.yml')))
-  fs.rmdirSync(path.join(cwd, '.sops.yaml'))
-  t.is(init(cwd, env).code, 0)
-  fs.rmSync(path.join(cwd, 'config', 'default.enc.yml'))
-  t.regex(cli(['init'], { cwd, env }).stdout, /already initialized/)
-  t.is(cli(['set', 'A=1'], { cwd, env }).code, 0)
-  t.is(cli(['get', 'A'], { cwd, env }).stdout, '1')
+test('with a .sops.yaml rule, init creates a missing default layer for its recipients and no new key', t => {
+  const cwd = temporaryDir('init-rule')
+  const { FIXTURE_RECIPIENT } = require('./helpers')
+  fs.writeFileSync(
+    path.join(cwd, '.sops.yaml'),
+    `creation_rules:\n  - path_regex: ^config/\n    age: ${FIXTURE_RECIPIENT}\n`
+  )
+  const result = cli(['init'], { cwd, env: freshHome() })
+  t.is(
+    result.stdout,
+    `created config/default.enc.yml for ${FIXTURE_RECIPIENT} (from .sops.yaml)`
+  )
+  t.deepEqual(recipientsIn(path.join(cwd, 'config', 'default.enc.yml')), [
+    FIXTURE_RECIPIENT
+  ])
 })
 
-test('a path that no .sops.yaml rule covers says so', t => {
-  const cwd = temporaryDir('uncovered')
-  const env = freshHome()
-  init(cwd, env)
-  const result = cli(['edit', 'other/production.enc.yml'], { cwd, env })
-  t.regex(result.stderr, /no rule in \.sops\.yaml matches/)
+test('a new file with no neighbour is locked for the exported key, and needs one', t => {
+  const cwd = temporaryDir('lonely')
+  const key = require('../src/age').generateIdentity()
+  const editor = fakeBinary(
+    'lonely-editor',
+    "require('fs').writeFileSync(process.argv[2], 'A: 1\\n')"
+  ).file
+  const missing = cli(['edit', 'other/production.enc.yml'], {
+    cwd,
+    env: { ...freshHome(), EDITOR: editor }
+  })
+  t.is(missing.code, 1)
+  t.regex(missing.stderr, /no age recipient for .*export SOPS_AGE_KEY/)
+  const env = { ...freshHome(), EDITOR: editor, SOPS_AGE_KEY: key }
+  t.is(cli(['edit', 'other/production.enc.yml'], { cwd, env }).code, 0)
+  t.deepEqual(recipientsIn(path.join(cwd, 'other', 'production.enc.yml')), [
+    require('../src/age').recipientOf(key)
+  ])
+})
+
+test('the exported key file adds every key except commented ones', t => {
+  const age = require('../src/age')
+  const [kept, revoked, second] = [
+    age.generateIdentity(),
+    age.generateIdentity(),
+    age.generateIdentity()
+  ]
+  const keyFile = path.join(temporaryDir('keys'), 'keys.txt')
+  fs.writeFileSync(keyFile, `# old key, revoked: ${revoked}\n${kept}\n`)
+  const cwd = temporaryDir('commented')
+  const env = {
+    ...freshHome(),
+    SOPS_AGE_KEY_FILE: keyFile,
+    SOPS_AGE_KEY: second
+  }
+  t.is(cli(['set', 'X=1'], { cwd, env }).code, 0)
+  t.deepEqual(
+    recipientsIn(path.join(cwd, 'config', 'default.enc.yml')).sort(),
+    [age.recipientOf(kept), age.recipientOf(second)].sort()
+  )
+})
+
+test('a new file ignores unrelated encrypted neighbours and uses the exported key', t => {
+  const age = require('../src/age')
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const cwd = temporaryDir('neighbour')
+  const vendor = age.generateIdentity()
+  store.writeDocument(
+    path.join(cwd, 'config', 'vendor.enc.yml'),
+    sops.encrypt({ A: 'x' }, { recipients: [age.recipientOf(vendor)] })
+  )
+  fs.writeFileSync(path.join(cwd, 'config', 'zzz.enc.yml'), 'foo: [unclosed\n')
+  const mine = age.generateIdentity()
+  const env = { ...freshHome(), SOPS_AGE_KEY: mine }
+  t.is(cli(['set', '-e', 'staging', 'X=1'], { cwd, env }).code, 0)
+  t.deepEqual(recipientsIn(path.join(cwd, 'config', 'staging.enc.yml')), [
+    age.recipientOf(mine)
+  ])
+  t.is(cli(['get', '-e', 'staging', 'X'], { cwd, env }).stdout, '1')
+})
+
+test('a damaged default layer is named when a new layer needs its recipients', t => {
+  const cwd = temporaryDir('bad-default')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  fs.writeFileSync(path.join(cwd, 'config', 'default.enc.yml'), 'FOO: bar\n')
+  const result = cli(['set', '-e', 'staging', 'X=1'], { cwd, env: withKey })
+  t.is(result.code, 1)
+  t.regex(result.stderr, /default\.enc\.yml: file is not encrypted with sops/)
+})
+
+test('a new layer inherits the encryption rules of the default layer', t => {
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const { FIXTURE_RECIPIENT } = require('./helpers')
+  const cwd = temporaryDir('inherit-rules')
+  store.writeDocument(
+    path.join(cwd, 'config', 'default.enc.yml'),
+    sops.encrypt(
+      { PASSWORD: 'x' },
+      { recipients: [FIXTURE_RECIPIENT], rules: { encrypted_regex: '^PASS' } }
+    )
+  )
+  t.is(
+    cli(['set', '-e', 'staging', 'PASSWORD=y'], { cwd, env: withKey }).code,
+    0
+  )
+  const staging = yaml.load(
+    fs.readFileSync(path.join(cwd, 'config', 'staging.enc.yml'), 'utf8')
+  )
+  t.is(staging.sops.encrypted_regex, '^PASS')
+})
+
+test('init adopts an exported key, and refuses to start a second key next to existing layers', t => {
+  const age = require('../src/age')
+  const key = age.generateIdentity()
+  const cwd = temporaryDir('init-adopt')
+  const adopted = cli(['init'], {
+    cwd,
+    env: { ...freshHome(), SOPS_AGE_KEY: key }
+  })
+  t.is(
+    adopted.stdout,
+    `created config/default.enc.yml for ${age.recipientOf(
+      key
+    )} (from SOPS_AGE_KEY)`
+  )
+  t.notRegex(adopted.stdout, /AGE-SECRET-KEY/)
+
+  const existing = project({ fixture: 'app' })
+  fs.rmSync(path.join(existing, 'config', 'default.enc.yml'))
+  const refused = cli(['init'], { cwd: existing, env: freshHome() })
+  t.is(refused.code, 1)
+  t.regex(
+    refused.stderr,
+    /already has encrypted layers \(production\.enc\.yml\): export SOPS_AGE_KEY/
+  )
+  t.notRegex(refused.stdout, /AGE-SECRET-KEY/)
+  t.false(fs.existsSync(path.join(existing, 'config', 'default.enc.yml')))
 })

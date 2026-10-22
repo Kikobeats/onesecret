@@ -4,7 +4,6 @@ A tiny app that reads its settings (`PORT`, `LOG_LEVEL`, `REQ_TIMEOUT`) from pla
 
 ```
 example/
-├── .sops.yaml                  ← who can decrypt: one age public key
 ├── index.js                    ← const config = require('onesecret').config()
 ├── package.json
 └── config/
@@ -14,7 +13,7 @@ example/
     └── production.enc.yml      ← secrets merged on top when NODE_ENV=production
 ```
 
-Open `config/default.enc.yml`: the names are readable, the values are not.
+Open `config/default.enc.yml`: the names are readable, the values are not. Its `sops:` block also lists the public key it is locked for, which is all onesecret needs to encrypt new files, so there is no `.sops.yaml`.
 
 ## The one secret
 

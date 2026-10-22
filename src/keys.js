@@ -157,7 +157,40 @@ const withoutAgeKey = env =>
     Object.entries(env).filter(([name]) => !AGE_KEY_VARIABLES.includes(name))
   )
 
+const EXPORTED_KEY = /AGE-SECRET-KEY-1[0-9A-Z]+/g
+
+const exportedKeyText = () => {
+  const texts = [process.env.SOPS_AGE_KEY || '']
+  if (process.env.SOPS_AGE_KEY_FILE) {
+    try {
+      texts.push(fs.readFileSync(process.env.SOPS_AGE_KEY_FILE, 'utf8'))
+    } catch {}
+  }
+  return texts
+    .join('\n')
+    .split('\n')
+    .filter(line => !line.trim().startsWith('#'))
+    .join('\n')
+}
+
+const recipientOrNull = identity => {
+  try {
+    return age.recipientOf(identity)
+  } catch {
+    return null
+  }
+}
+
+const exportedRecipients = () => [
+  ...new Set(
+    (exportedKeyText().match(EXPORTED_KEY) || [])
+      .map(recipientOrNull)
+      .filter(Boolean)
+  )
+]
+
 module.exports = {
+  exportedRecipients,
   sopsKeysFile,
   withIdentities,
   withoutAgeKey

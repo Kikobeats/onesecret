@@ -36,8 +36,9 @@ const start = env => {
 const assertDocumented = (t, stdout) =>
   t.true(EXAMPLE_README.includes(stdout), `README is missing:\n${stdout}`)
 
-test('the example commits no key', t => {
+test('the example commits no key and no sops config', t => {
   t.false(fs.existsSync(path.join(EXAMPLE, 'age.key')))
+  t.false(fs.existsSync(path.join(EXAMPLE, '.sops.yaml')))
   const pkg = JSON.parse(
     fs.readFileSync(path.join(EXAMPLE, 'package.json'), 'utf8')
   )

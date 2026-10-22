@@ -24,6 +24,8 @@ const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'onesecret-home-'))
 createdDirs.push(isolatedHome)
 process.env.HOME = isolatedHome
 process.env.XDG_CONFIG_HOME = path.join(isolatedHome, '.config')
+process.env.EDITOR = 'false'
+delete process.env.VISUAL
 for (const name of [
   'SOPS_AGE_KEY',
   'SOPS_AGE_KEY_FILE',
