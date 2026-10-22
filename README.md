@@ -484,7 +484,7 @@ The encrypted files are standard [SOPS](https://github.com/getsops/sops) files l
 Is every secret already set in the environment?
 ├─ yes  →  use those values, decrypt nothing           ← production
 └─ no   →  is there a key?
-           ├─ yes  →  decrypt only the missing ones    ← your laptop
+           ├─ yes  →  decrypt only the missing ones    ← development, CI
            └─ no   →  stop, naming each missing secret
 ```
 
