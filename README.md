@@ -29,6 +29,7 @@ $ npm install onesecret
 
 ```bash
 $ npx onesecret init
+
 public key   age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 private key  AGE-SECRET-KEY-1…
 secrets      config/default.enc.yml
