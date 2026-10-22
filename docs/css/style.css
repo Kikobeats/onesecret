@@ -438,6 +438,46 @@ main > .content {
   margin: 0;
 }
 
+.markdown-section details {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  margin: 10px 0;
+  padding: 0 18px;
+}
+
+.markdown-section details[open] {
+  padding-bottom: 6px;
+}
+
+.markdown-section summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  list-style: none;
+  padding: 13px 0;
+}
+
+.markdown-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.markdown-section summary::before {
+  color: var(--subtle-color);
+  content: '›';
+  font-size: 1.2em;
+  line-height: 1;
+  transition: transform 0.15s ease-out;
+}
+
+.markdown-section details[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.markdown-section summary:hover strong {
+  color: var(--accent-color);
+}
+
 .markdown-section hr {
   border: 0;
   border-top: 1px solid var(--border-color);
