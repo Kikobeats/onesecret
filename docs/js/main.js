@@ -70,8 +70,16 @@ const startCoverWhenRendered = () => {
   observer.observe(document.body, { childList: true, subtree: true })
 }
 
+const hoistPageTitle = () => {
+  const list = document.querySelector('.sidebar-nav > ul')
+  if (list?.children.length !== 1) return
+  const nested = list.firstElementChild.querySelector(':scope > ul')
+  if (nested) list.firstElementChild.replaceWith(...nested.children)
+}
+
 const enhancePage = () => {
   document.querySelector('#seo-content')?.remove()
+  hoistPageTitle()
   markSignatures()
   window.codecopy('pre')
 }
