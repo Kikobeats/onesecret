@@ -70,7 +70,7 @@ $ npx onesecret set DATABASE_URL=postgres://localhost/app SESSION_SECRET=dev-onl
 $ npx onesecret set --env production DATABASE_URL=... STRIPE_KEY=...
 ```
 
-`set` stores each value as the exact string given. Pass the values from the old `.env` files with a short script that reads them and calls `set` with an argument list (for example `execFileSync('npx', ['onesecret', 'set', '--env', env, ...pairs])`), so values never pass through shell quoting or get printed. They are visible in the process list only while `set` runs.
+`set` stores each value as the exact string given. Pass the values from the old `.env` files with a short script that reads them and calls `set` with an argument list (for example `execFileSync('npx', ['onesecret', 'set', '--env', env, ...pairs])`), so values never pass through shell quoting or get printed. `set` takes values only as arguments, so they are visible in the process list while it runs: do this on your own machine or a trusted CI runner, never on a shared host.
 
 Secrets that exist only on a platform (step 1) need their values from the user or the platform's CLI. If you cannot read a value, leave the name out and list it as a follow-up.
 
@@ -118,7 +118,7 @@ Prove the migration with output that contains no values:
 $ npx onesecret ls --env production
 ```
 
-Compare the new values with the old ones, per environment, printing only names and `ok` or `MISMATCH`. For example, parse `npx onesecret dotenv --env production --json` (the secrets) and `require('onesecret').config({ env: 'production', processEnv: {} })` (the plain settings) in a small Node script, next to the old `.env` plus `.env.production` parsed with `node:util`'s `parseEnv`. With an explicit `--env`, `dotenv` refuses a layer that has no file, so an environment whose values all live in `default`, such as development, is checked with `--env default`. Every secret and setting from the inventory must be accounted for.
+Compare the new values with the old ones, per environment, printing only names and `ok` or `MISMATCH`. For example, parse `npx onesecret dotenv --env production --json` (the secrets) and `require('onesecret').config({ env: 'production', processEnv: {} })` (every setting and secret merged, ignoring the current environment, with YAML types, so compare `String(value)`) in a small Node script, next to the old `.env` plus `.env.production` parsed with `node:util`'s `parseEnv`. With an explicit `--env`, `dotenv` refuses a layer that has no file, so an environment whose values all live in `default`, such as development, is checked with `--env default`. Every secret and setting from the inventory must be accounted for.
 
 Then run the test suite and start the app with each environment's settings. Fix any mismatch before going on.
 
