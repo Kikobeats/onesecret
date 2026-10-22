@@ -121,6 +121,16 @@ $ export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 $ npx onesecret set --env staging DATABASE_URL=postgres://db.staging/app
 ```
 
+### Migrate an existing project
+
+Give your coding agent this prompt:
+
+```
+Migrate this project to onesecret. Follow https://kikobeats.github.io/onesecret/migrate.md step by step.
+```
+
+[The migration guide](migrate.md) has it inventory your `.env` files and platform secrets, encrypt the secrets with `set`, swap the loader for `env()` or `config()`, and check every value against the old ones without printing any.
+
 ## Deploy
 
 Deploys push only the secrets, with their merged values. Plain settings ship inside the image with the `config/` directory.

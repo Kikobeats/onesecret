@@ -181,6 +181,9 @@
   content: "$ ";
   color: var(--cover-accent);
 }
+.cover__command[data-kind="prompt"] code::before {
+  content: "› ";
+}
 
 .cover__copy {
   flex: none;

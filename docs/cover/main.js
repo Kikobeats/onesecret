@@ -313,20 +313,25 @@ function scrambleTagline () {
 
 function setupTabs () {
   const tabs = [...cover.querySelectorAll('[role=tab]')]
+  const panel = cover.querySelector('[role=tabpanel]')
   const command = cover.querySelector('[data-command]')
   const copy = cover.querySelector('[data-copy]')
   const scramble = createScramble(command, COMMAND_SCRAMBLE)
-  let selected = command.textContent
-  scramble.show(selected)
+  const copyTextOf = tab => tab.dataset.copyText ?? tab.dataset.value
+  let selected = tabs.find(tab => tab.getAttribute('aria-selected') === 'true')
+  scramble.show(selected.dataset.value)
+  copy.setAttribute('aria-label', `Copy: ${copyTextOf(selected)}`)
   const select = tab => {
     tabs.forEach(other => {
       const active = other === tab
       other.setAttribute('aria-selected', String(active))
       other.tabIndex = active ? 0 : -1
     })
-    if (tab.dataset.value === selected) return
-    selected = tab.dataset.value
-    scramble.play(selected)
+    if (tab === selected) return
+    selected = tab
+    panel.dataset.kind = tab.dataset.kind
+    copy.setAttribute('aria-label', `Copy: ${copyTextOf(tab)}`)
+    scramble.play(tab.dataset.value)
   }
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => select(tab))
@@ -341,7 +346,7 @@ function setupTabs () {
   })
   copy.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(selected)
+      await navigator.clipboard.writeText(copyTextOf(selected))
       copy.dataset.copied = 'true'
       setTimeout(() => delete copy.dataset.copied, 1400)
     } catch {
