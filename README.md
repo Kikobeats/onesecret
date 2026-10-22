@@ -8,8 +8,6 @@
 
 Put your app's passwords, tokens, and API keys in your repository, encrypted, right next to your code. One key unlocks all of them, and your servers don't even need that key: when you deploy, you hand the values to your hosting platform, and your app finds them already set.
 
-The files are standard [SOPS](https://github.com/getsops/sops) files, a common format for encrypted config, locked with an [age](https://age-encryption.org) key. You don't need to install either tool: the npm package does everything.
-
 ## Why onesecret
 
 - **One key for every environment.** Keep it in your password manager and in CI. It never goes into your app or your Docker image.
@@ -447,6 +445,8 @@ config/production.enc.yml    ← secrets for production
 ```
 
 `default` is the base, and an environment such as `production` adds to it and wins where they overlap. Files ending in `.yml` hold plain settings; files ending in `.enc.yml` hold secrets, encrypted.
+
+The encrypted files are standard [SOPS](https://github.com/getsops/sops) files locked with an [age](https://age-encryption.org) key, so the `sops` CLI and other SOPS tools can read them too. You don't need to install either: onesecret does the encryption itself.
 
 When your app starts, onesecret checks which secrets are already set:
 
