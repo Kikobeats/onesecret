@@ -91,22 +91,11 @@ if (config.has('SENTRY_DSN')) {
 // Values your app cannot run without: fail at startup, naming what is missing
 config.require('DATABASE_URL') // 'postgres://…'
 const { DATABASE_URL, PORT } = config.required // the same, for several names at once
+
+// OnesecretError: onesecret: "DATABASE_URL" is required but not set in the "production" config
 ```
 
-The environment comes from `NODE_ENV`, or `development` when it is unset.
-
-If a required value is missing, your app stops at startup and the error names it:
-
-```js
-const { DATABASE_URL, SENTRY_DSN } = config.required
-```
-
-```
-OnesecretError: onesecret: "SENTRY_DSN" is required but not set in the "development" config
-  code: 'EMISSING'
-```
-
-**Alternative:** if your code already reads `process.env`, as with dotenv, call `env()` instead. It puts every value into `process.env`:
+If your code already reads `process.env`, as with dotenv, call `env()` instead. It puts every value into `process.env`:
 
 ```js
 require('onesecret').env()
@@ -114,13 +103,13 @@ require('onesecret').env()
 process.env.DATABASE_URL // 'postgres://…'
 ```
 
-On your laptop, onesecret decrypts with the key you exported. Without a key, it stops and tells you which secret it could not read:
+onesecret decrypts with the key you exported. Without a key, it stops and tells you which secret it could not read:
 
 ```
 onesecret: DATABASE_URL is not set and cannot be decrypted, no age key found: …
 ```
 
-[`example/`](https://github.com/Kikobeats/onesecret/tree/master/example) is a small app you can run to see it working.
+To see it all working, run the [example app](https://github.com/Kikobeats/onesecret/tree/master/example).
 
 ## Everyday tasks
 
