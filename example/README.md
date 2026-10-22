@@ -23,7 +23,7 @@ Everything above is committed. What is not is the age private key that decrypts 
 $ export SOPS_AGE_KEY=AGE-SECRET-KEY-13QR3K228RC02SC75MGDSQX7ALFSCPMXGXNQ4RDQ5XMSZKGAAK4AS43X0HC
 ```
 
-This key is printed here only because the example's secrets are fake. In a real project, never write it down in the repo: keep it somewhere safe and as a CI variable named `SOPS_AGE_KEY`, or let `keyCommand` fetch it (see **Fetch the key with a command** in the [main README](../README.md#how-it-works)).
+This key is printed here only because the example's secrets are fake. In a real project, never write it down in the repo: keep it somewhere safe and as a CI variable named `SOPS_AGE_KEY`, or let `keyCommand` fetch it (see [Fetch the key with a command](../README.md#fetch-the-key-with-a-command) in the main README).
 
 ## Run it
 

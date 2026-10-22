@@ -459,73 +459,52 @@ Other `.env` parsers differ, as the providers above show. When a tool takes JSON
 
 ## How it works
 
-Your configuration lives in the `config/` folder, with up to two files per environment:
+### Your config is a folder of files
+
+Each environment can have two files, one for plain settings and one for secrets. Every file is optional.
 
 ```
-config/default.yml           ← settings shared by every environment
-config/default.enc.yml       ← secrets shared by every environment
-config/production.yml        ← settings for production
-config/production.enc.yml    ← secrets for production
+config/default.yml           ← settings for every environment
+config/default.enc.yml       ← secrets for every environment
+config/production.yml        ← settings for production only
+config/production.enc.yml    ← secrets for production only
 ```
 
-`default` is the base, and an environment such as `production` adds to it and wins where they overlap. Files ending in `.yml` hold plain settings; files ending in `.enc.yml` hold secrets, encrypted.
+onesecret reads them in that order and merges them, so a later file wins. Nested settings are merged key by key, so `production.yml` can change `database.pool` and keep the rest of `database` from `default.yml`.
+
+In the encrypted files, only the values are encrypted. The names stay readable, which is how onesecret knows what should exist without the key, and how `npx onesecret ls` lists them.
 
 The encrypted files are standard [SOPS](https://github.com/getsops/sops) files locked with an [age](https://age-encryption.org) key, so the `sops` CLI and other SOPS tools can read them too. You don't need to install either: onesecret does the encryption itself.
 
-When your app starts, onesecret checks which secrets are already set:
+### What happens when your app starts
 
-- **All of them**, as in production: it decrypts nothing and needs no key.
-- **Some are missing**, as on your laptop: it decrypts them with your key.
-- **Some are missing and there is no key:** it stops and names each missing secret.
-
-<details>
-<summary><strong>Layers in detail</strong></summary>
+`config()` and `env()` look at the secret names, then at what is already in the environment:
 
 ```
-config/default.yml           ← plain settings shared by every environment
-config/default.enc.yml       ← secrets shared by every environment
-config/production.yml        ← plain settings for NODE_ENV=production
-config/production.enc.yml    ← secrets for NODE_ENV=production
+Is every secret already set in the environment?
+├─ yes  →  use those values, decrypt nothing           ← production
+└─ no   →  is there a key?
+           ├─ yes  →  decrypt only the missing ones    ← your laptop
+           └─ no   →  stop, naming each missing secret
 ```
 
-Every file is optional. They are merged in that order, so a later file wins, and nested objects are merged key by key.
+- A value already in the environment always wins, for plain settings too. An empty string counts as set.
+- To fill in missing secrets, onesecret decrypts every encrypted file of that environment, so the key must open all of them, even when only one holds a missing secret.
+- `config()` never changes `process.env`. `env()` changes nothing but `process.env`, or `options.processEnv` when given.
 
-Each encrypted file records the public key it is locked for, so a new layer such as `config/staging.enc.yml` is locked for the same key as `config/default.enc.yml` in its folder, with the same encryption rules. A file whose folder has no `default.enc.yml` is locked for the public key of the `SOPS_AGE_KEY` you exported.
+### Where the key comes from
 
-</details>
+onesecret looks for the key in these places and tries every key it finds:
 
-<details>
-<summary><strong>What config() and env() do at boot</strong></summary>
+1. `SOPS_AGE_KEY`, the key itself. This is the usual choice in CI.
+2. `SOPS_AGE_KEY_FILE`, a path to a keys file.
+3. The keys file the `sops` CLI uses: `$XDG_CONFIG_HOME/sops/age/keys.txt`, `~/Library/Application Support/sops/age/keys.txt` on macOS, or `~/.config/sops/age/keys.txt`.
 
-Both read the secret names (they are plaintext in the encrypted files) and check `process.env`:
+If none of them opens the file, it runs `SOPS_AGE_KEY_CMD` or the `keyCommand` setting.
 
-1. Every secret is already set: nothing is decrypted, and the key is not needed. This is production. A variable set to an empty string counts as set.
-2. Some secrets are missing: they find the age key, decrypt every encrypted layer, and supply **only** the missing values. `config()` returns them; `env()` writes them into `process.env`. The key must open every encrypted layer of that env, even when only one of them holds a missing secret.
-3. Some secrets are missing and there is no key: they throw, naming each missing secret.
+### Fetch the key with a command
 
-Values already in the environment always win, for plain settings too. In `production` and `staging`, neither runs `keyCommand`, so a missing secret fails the boot instead of fetching a key.
-
-`config()` never changes `process.env`, and `env()` changes nothing but `process.env`, or `options.processEnv` when given.
-
-</details>
-
-<details>
-<summary><strong>Where the key comes from</strong></summary>
-
-The age key is read from these sources, and every key found is tried:
-
-- `SOPS_AGE_KEY`, the key itself (the usual choice in CI).
-- `SOPS_AGE_KEY_FILE`, a path to a keys file.
-- The sops keys file: `$XDG_CONFIG_HOME/sops/age/keys.txt`, `~/Library/Application Support/sops/age/keys.txt` on macOS, and `~/.config/sops/age/keys.txt` on any system.
-
-When none of them opens the file, `SOPS_AGE_KEY_CMD` or the `keyCommand` setting runs. See **Fetch the key with a command** below.
-
-</details>
-
-<details>
-<summary><strong>Fetch the key with a command</strong></summary>
-
-With `keyCommand`, nobody keeps the key on disk. It is a command that prints the key. For example, to read it from a GitLab CI variable (`glab`) or from 1Password (`op`):
+With `keyCommand`, nobody keeps the key on disk. It is a command that prints the key, for example from a GitLab CI variable (`glab`) or from 1Password (`op`). Set it in `package.json`:
 
 ```json
 {
@@ -535,23 +514,23 @@ With `keyCommand`, nobody keeps the key on disk. It is a command that prints the
 }
 ```
 
-It runs at most once per process, whether it succeeds or fails, and `config()` and `env()` never run it in `production` or `staging`. The CLI (`exec`, `get`, `dotenv`) does run it in any env, since you call it on purpose.
+It runs at most once per process, whether it works or not. `config()` and `env()` never run it in `production` or `staging`, so a missing secret there fails the boot instead of fetching a key. The CLI (`exec`, `get`, `dotenv`) runs it in any environment, since you call it on purpose.
 
-`keyCommand` comes from the project's `package.json`, so it has the same trust model as an npm script: only run onesecret in repositories you trust.
+Because it comes from `package.json`, `keyCommand` is as trusted as an npm script: only run onesecret in repositories you trust.
 
-</details>
+### Keeping the key away from your app
 
-<details>
-<summary><strong>The key never reaches your app</strong></summary>
+`exec` removes `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` before it starts your command, so the command gets the secrets but not the key.
 
-`exec` removes `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` from the environment it passes on, so the command you run gets the secrets but not the key. The keys file stays readable on disk to anything running as you, and `edit` and `keyCommand` run with your full environment.
+Two things still see it: the keys file stays readable on disk to anything running as you, and `edit` and `keyCommand` run with your full environment.
 
-</details>
+### New environments use the same key
 
-<details>
-<summary><strong>Separate keys per person</strong></summary>
+A new encrypted file, such as `config/staging.enc.yml`, is locked for the same key as `config/default.enc.yml` in its folder, with the same encryption rules. If the folder has no `default.enc.yml` yet, it is locked for the key you exported in `SOPS_AGE_KEY`.
 
-One shared key needs no configuration. To give each person or CI its own key instead, list their public keys in a `.sops.yaml` rule, the format the `sops` CLI uses, then encrypt each layer again:
+### Separate keys per person
+
+One shared key needs no setup. To give each person or CI job its own key, list their public keys in a `.sops.yaml` rule, the format the `sops` CLI uses, then encrypt each environment again:
 
 ```yaml
 # .sops.yaml
@@ -565,9 +544,7 @@ $ npx onesecret rekey
 $ npx onesecret rekey --env production
 ```
 
-When a `.sops.yaml` rule matches a file, its recipients win over the ones the file already lists. Removing someone stops them from reading future versions, but they can still read every version they already had. Rotate the credentials themselves too.
-
-</details>
+When a `.sops.yaml` rule matches a file, its keys replace the ones the file already lists. Removing someone stops them from reading future versions, but not the versions they already had, so change the credentials themselves too.
 
 ## Reference
 
