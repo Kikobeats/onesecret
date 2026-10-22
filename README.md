@@ -509,6 +509,21 @@ const config = require('onesecret').config() // NODE_ENV, then "development"
 const staging = require('onesecret').config('staging')
 ```
 
+The object also reads values through four accessors:
+
+```js
+config.DATABASE_URL // plain access
+config.get('database.pool', 5) // a dot path, with a fallback when it is unset
+config.has('FEATURE_FLAG') // true when set, even to 0, false, or ''
+config.require('STRIPE_KEY') // the value, or throws EMISSING when it is unset
+const { STRIPE_KEY, DATABASE_URL } = config.required // throws for an unset name
+```
+
+- A path is a dot string or an array of keys, such as `['database', 'pool']`. A string matches an exact name first, so `get('log.level')` reads a key named `log.level` before it looks into `log`. Only config values count: `has('constructor')`, `has('get')`, and `has('hosts.length')` are `false`.
+- The accessors are not enumerable, so they stay out of `Object.keys`, spread, and `JSON.stringify`. A config value named `get`, `has`, `require`, or `required` is refused.
+- `config.required` is only for destructuring: every name read from it is required, so `JSON.stringify(config.required)` or `await config.required` throws.
+- They work like [miconfig](https://github.com/Kikobeats/miconfig)'s with two differences. `0`, `false`, `''`, and `null` count as set. Values are not parsed again: they keep their YAML type, and a value from the environment is a string unless it matches the file's value, so `PORT=8080` over `PORT: 3000` reads `'8080'`.
+
 ### env([env | options])
 
 Writes every value missing from `process.env` (or `options.processEnv`) into it, as a string: the same values `config()` would add on top of the environment. It follows the same rules and throws the same errors as `config()`, writes nothing when it throws, and returns nothing.
@@ -527,11 +542,11 @@ Every error is an `OnesecretError` with a `code`:
 
 | Code        | Meaning                                                            |
 | ----------- | ------------------------------------------------------------------ |
-| `EMISSING`  | A secret is not in the environment and could not be decrypted.     |
+| `EMISSING`  | A secret is not in the environment and could not be decrypted, or `config().require` found no value. |
 | `ENOKEY`    | No age key was found.                                              |
 | `EKEY`      | A key was found but does not open the file, or `keyCommand` failed. |
 | `EMAC`      | The file was modified without the key.                             |
-| `EFORMAT`   | A file cannot be read: not valid YAML or JSON, not a supported SOPS file, two files for one layer, or a secret `config()` could never find in the environment. |
+| `EFORMAT`   | A file cannot be read: not valid YAML or JSON, not a supported SOPS file, two files for one layer, a secret `config()` could never find in the environment, or a config name reserved for an accessor. |
 | `EVALUE`    | A value cannot be stored or turned into an environment variable.   |
 | `EUSAGE`    | A CLI command was called the wrong way, or the editor failed.      |
 

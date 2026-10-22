@@ -8,6 +8,7 @@ const store = require('./store')
 const { withIdentities } = require('./keys')
 const { isEnvName, isEnvScalar, toEnvValue } = require('./format')
 const { OnesecretError } = require('./error')
+const { withAccessors } = require('./accessors')
 
 const DEFAULT_DIR = 'config'
 const DEFAULT_ENV = 'development'
@@ -325,7 +326,7 @@ const resolve = (input, { allowKeyCommand } = {}) => {
   const skip = target[SKIP_VARIABLE] === '1'
   const layered = readLayers(options)
   if (!hasFiles(layered.layers)) {
-    if (skip) return { target, result: {}, missing: {} }
+    if (skip) return { target, env: layered.env, result: {}, missing: {} }
     throw new OnesecretError(
       `no config files for "default" or "${layered.env}" found in ${layered.dir}`,
       'EMISSING'
@@ -356,10 +357,13 @@ const resolve = (input, { allowKeyCommand } = {}) => {
       }
     }
   }
-  return { target, result, missing: missingValues }
+  return { target, env: layered.env, result, missing: missingValues }
 }
 
-const config = input => resolve(input).result
+const config = input => {
+  const { result, env } = resolve(input)
+  return withAccessors(result, env)
+}
 
 const writeEnv = (input, options) => {
   const { target, missing } = resolve(input, options)

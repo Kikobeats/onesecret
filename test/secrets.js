@@ -1397,3 +1397,144 @@ test.serial('a rewritten file is decrypted again in the same process', t => {
     t.is(onesecret.config({ cwd, processEnv: {} }).TOKEN, 'second')
   })
 })
+
+const accessorProject = () => {
+  const cwd = encryptedProject(
+    { default: { TOKEN: 'secret' } },
+    {
+      'default.yml': [
+        'ZERO: 0',
+        'OFF: false',
+        'EMPTY: ""',
+        'NOTHING: null',
+        'database:',
+        '  pool: 5',
+        '  ssl: false',
+        'hosts: [a, b]',
+        '"dotted.key": exact',
+        ''
+      ].join('\n')
+    }
+  )
+  return withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () =>
+    onesecret.config({ cwd, processEnv: {} })
+  )
+}
+
+test.serial(
+  'config().get reads dot paths, array indexes, and exact keys, with a fallback',
+  t => {
+    const config = accessorProject()
+    t.is(config.get('TOKEN'), 'secret')
+    t.is(config.get('database.pool'), 5)
+    t.is(config.get('hosts.1'), 'b')
+    t.is(config.get('dotted.key'), 'exact')
+    t.is(config.get('database.missing', 10), 10)
+    t.is(config.get('database.pool.deeper'), undefined)
+    t.is(config.get('ZERO', 99), 0)
+    t.is(config.get('NOTHING', 'fallback'), null)
+  }
+)
+
+test.serial(
+  'config().has counts 0, false, empty, and null as set, and ignores the prototype',
+  t => {
+    const config = accessorProject()
+    for (const path of [
+      'ZERO',
+      'OFF',
+      'EMPTY',
+      'NOTHING',
+      'database.ssl',
+      'hosts.0'
+    ]) {
+      t.true(config.has(path), path)
+    }
+    for (const path of [
+      'MISSING',
+      'database.missing',
+      'constructor',
+      'toString',
+      '__proto__',
+      'database.constructor',
+      'hosts.length',
+      'get',
+      'has',
+      'require',
+      'required'
+    ]) {
+      t.false(config.has(path), path)
+    }
+  }
+)
+
+test.serial(
+  'config().require returns falsy values and throws naming the path and env',
+  t => {
+    const config = accessorProject()
+    t.is(config.require('OFF'), false)
+    t.is(config.require('database.pool'), 5)
+    const error = t.throws(() => config.require('database.url'))
+    t.is(error.code, 'EMISSING')
+    t.regex(
+      error.message,
+      /"database\.url" is required but not set in the "development" config/
+    )
+  }
+)
+
+test.serial('config().required throws on destructuring a missing name', t => {
+  const config = accessorProject()
+  const { TOKEN, ZERO } = config.required
+  t.deepEqual([TOKEN, ZERO], ['secret', 0])
+  t.is(
+    t.throws(() => {
+      const { MISSING } = config.required
+      return MISSING
+    }).code,
+    'EMISSING'
+  )
+  t.notThrows(() => require('node:util').inspect(config.required))
+})
+
+test.serial('the accessors stay out of keys, spread, and JSON', t => {
+  const config = accessorProject()
+  for (const name of ['get', 'has', 'require', 'required']) {
+    t.false(Object.keys(config).includes(name), name)
+    t.false(Object.hasOwn({ ...config }, name), name)
+  }
+  t.false(JSON.stringify(config).includes('"get"'))
+})
+
+test.serial('a config name that collides with an accessor is refused', t => {
+  const cwd = temporaryDir('reserved-name')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'get: 1\nrequired: 2\nPORT: 3\n')
+  const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(error.code, 'EFORMAT')
+  t.regex(error.message, /"get", "required" cannot be a config name/)
+  const processEnv = {}
+  t.notThrows(() => onesecret.env({ cwd, processEnv }))
+  t.is(processEnv.PORT, '3')
+})
+
+test.serial(
+  'config().get takes array paths and refuses other path types',
+  t => {
+    const config = accessorProject()
+    t.is(config.get(['database', 'pool']), 5)
+    t.is(config.get(['dotted.key']), 'exact')
+    t.is(config.get(['hosts', 0]), 'a')
+    for (const path of [undefined, null, {}, () => {}]) {
+      t.is(t.throws(() => config.get(path)).code, 'EUSAGE')
+      t.is(t.throws(() => config.require(path)).code, 'EUSAGE')
+    }
+    t.is(
+      t.throws(() => {
+        const { get } = config.required
+        return get
+      }).code,
+      'EMISSING'
+    )
+  }
+)
