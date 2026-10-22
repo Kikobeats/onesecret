@@ -2,12 +2,12 @@ Usage
   $ onesecret <command> [options]
 
 Commands
-  init                      Create an age key and print it, then .sops.yaml and config/default.enc.yml
+  init                      Create an age key, print it, and write config/default.enc.yml
   set NAME=value...         Encrypt one or more secrets into a layer
   unset NAME...             Remove secrets from a layer
   edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
                             (a plain .yml or .json file opens as it is)
-  rekey                     Encrypt a layer again with a new data key and the .sops.yaml recipients
+  rekey                     Encrypt a layer again with a new data key, for its recipients or a .sops.yaml rule
   ls                        List secret names (no key needed)
   get NAME                  Print one value, from a plain or an encrypted layer
   dotenv                    Print every decrypted secret as NAME=value

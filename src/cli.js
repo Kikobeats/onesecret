@@ -241,13 +241,12 @@ const COMMANDS = {
     const result = write.initialize(writeOptions(flags))
     if (!result.created) {
       return `already initialized for ${result.recipient} (${relative(
-        result.sopsConfigFile
+        result.defaultFile
       )})`
     }
     return [
       `public key   ${result.recipient}`,
       `private key  ${result.identity}`,
-      `sops config  ${relative(result.sopsConfigFile)}`,
       `secrets      ${relative(result.defaultFile)}`,
       '',
       'The private key is shown only now and is not saved anywhere. Keep it in your',

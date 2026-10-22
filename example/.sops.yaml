@@ -1,3 +1,0 @@
-creation_rules:
-  - path_regex: "^config/[^/]+\\.enc\\.(ya?ml|json)$"
-    age: "age17td4mnxzqcz6vy30pz94stf8e44gwugljcystlukpphk275nvq8sk639sm"

@@ -26,7 +26,6 @@ $ npm install onesecret
 $ npx onesecret init
 public key   age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p
 private key  AGE-SECRET-KEY-1…
-sops config  .sops.yaml
 secrets      config/default.enc.yml
 
 The private key is shown only now and is not saved anywhere. Keep it in your
@@ -37,10 +36,12 @@ password manager and as SOPS_AGE_KEY in CI. To use it in this shell:
 $ export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 $ npx onesecret set DATABASE_URL=postgres://localhost/app STRIPE_KEY=sk_test_123
 $ npx onesecret set --env production DATABASE_URL=postgres://db.internal/app
-$ git add .sops.yaml config
+$ git add config
 ```
 
 `init` prints the private key once and writes it nowhere, so it never sits in a file on your disk. Save it in your password manager before closing the terminal: without it, nobody can decrypt the files.
+
+There is no other configuration. Each encrypted file records the public key it is locked for, so a new layer such as `config/staging.enc.yml` is locked for the same key as `config/default.enc.yml`. A file with no encrypted neighbour is locked for the public key of the `SOPS_AGE_KEY` you exported.
 
 Load them as the first thing your app does:
 
@@ -182,12 +183,12 @@ Usage
   $ onesecret <command> [options]
 
 Commands
-  init                      Create an age key and print it, then .sops.yaml and config/default.enc.yml
+  init                      Create an age key, print it, and write config/default.enc.yml
   set NAME=value...         Encrypt one or more secrets into a layer
   unset NAME...             Remove secrets from a layer
   edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
                             (a plain .yml or .json file opens as it is)
-  rekey                     Encrypt a layer again with a new data key and the .sops.yaml recipients
+  rekey                     Encrypt a layer again with a new data key, for its recipients or a .sops.yaml rule
   ls                        List secret names (no key needed)
   get NAME                  Print one value, from a plain or an encrypted layer
   dotenv                    Print every decrypted secret as NAME=value
@@ -220,18 +221,25 @@ Examples
 
 When an edit is not valid YAML, the editor opens again with your changes, and the error never prints the decrypted content.
 
-`edit` opens `$VISUAL` or `$EDITOR` (then `vi`). GUI editors that return at once, such as VS Code, Cursor, Zed, or Sublime Text, get their wait flag added, so `EDITOR=code` works without `--wait`. Any other editor command must wait until the file is closed, as git requires too. It takes the path of the file to open, such as `config/production.enc.yml`, or edits the `--env` layer when no path is given. A path that does not exist yet is created with the `.sops.yaml` rule, and a path no rule covers is refused before the editor opens. A plain `.yml` or `.json` path opens as it is; when it is saved invalid, the editor opens again. `get` reads a plain value without the key, and prints a nested value as YAML.
+`edit` opens `$VISUAL` or `$EDITOR` (then `vi`). GUI editors that return at once, such as VS Code, Cursor, Zed, or Sublime Text, get their wait flag added, so `EDITOR=code` works without `--wait`. Any other editor command must wait until the file is closed, as git requires too. It takes the path of the file to open, such as `config/production.enc.yml`, or edits the `--env` layer when no path is given. A path that does not exist yet is created for the same recipients as the default layer, and is refused before the editor opens when onesecret cannot tell who to lock it for. A plain `.yml` or `.json` path opens as it is; when it is saved invalid, the editor opens again. `get` reads a plain value without the key, and prints a nested value as YAML.
 
-### Adding or removing a teammate
+### Separate keys per person
 
-Recipients live in `.sops.yaml`. Add or remove a public key there, then encrypt each layer again:
+One shared key needs no configuration. To give each person or CI its own key instead, list their public keys in a `.sops.yaml` rule, the format the `sops` CLI uses, then encrypt each layer again:
+
+```yaml
+# .sops.yaml
+creation_rules:
+  - path_regex: ^config/
+    age: age1…alice,age1…bob,age1…ci
+```
 
 ```bash
 $ npx onesecret rekey
 $ npx onesecret rekey --env production
 ```
 
-Removing someone from `.sops.yaml` stops them from reading future versions, but they can still read every version they already had. Rotate the credentials themselves too.
+When a `.sops.yaml` rule matches a file, its recipients win over the ones the file already lists. Removing someone stops them from reading future versions, but they can still read every version they already had. Rotate the credentials themselves too.
 
 ## API
 

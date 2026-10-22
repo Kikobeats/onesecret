@@ -4,21 +4,15 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { isDeepStrictEqual } = require('node:util')
 const yaml = require('./yaml')
-const jsYaml = require('js-yaml')
 const age = require('./age')
 const sops = require('./sops')
 const store = require('./store')
 const { assertEnv, decryptDocument, resolveOptions } = require('./secrets')
 const { assertEnvName, isEnvScalar } = require('./format')
+const { exportedRecipients } = require('./keys')
 const { OnesecretError } = require('./error')
 
-const ENCRYPTED_FILES_PATTERN = '[^/]+\\.enc\\.(ya?ml|json)$'
 const RESERVED_NAME = 'sops'
-const RULES_HEADER = /^creation_rules:[ \t]*\n/m
-const FIRST_ITEM_INDENT = /^([ \t]*)-/m
-const DEFAULT_INDENT = '  '
-
-const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const SELECTOR_RULES = [
   'unencrypted_suffix',
@@ -45,6 +39,36 @@ const assertRecipients = (recipients, source) => {
   }
 }
 
+const siblingDocumentOf = file => {
+  const dir = path.dirname(file)
+  const defaultFile = store.findLayerFile(dir, store.DEFAULT_LAYER)
+  const others = store
+    .encryptedFilesIn(dir)
+    .filter(candidate => candidate !== file && candidate !== defaultFile)
+  for (const candidate of [defaultFile, ...others]) {
+    if (!candidate || candidate === file) continue
+    const document = store.readDocument(candidate)
+    if (document) return { file: candidate, document }
+  }
+  return null
+}
+
+const recipientsFor = (file, existing) => {
+  const rule = store.creationRule(file)
+  if (rule) {
+    return { recipients: rule.recipients, source: store.SOPS_CONFIG, rule }
+  }
+  if (existing) return { recipients: sops.recipientsOf(existing), source: file }
+  const sibling = siblingDocumentOf(file)
+  if (sibling) {
+    return {
+      recipients: sops.recipientsOf(sibling.document),
+      source: sibling.file
+    }
+  }
+  return { recipients: exportedRecipients(), source: 'SOPS_AGE_KEY' }
+}
+
 const encryptionFor = (file, existing) => {
   const others = existing ? sops.otherKeySources(existing.sops) : []
   if (others.length > 0) {
@@ -55,21 +79,14 @@ const encryptionFor = (file, existing) => {
       'EFORMAT'
     )
   }
-  const rule = store.creationRule(file)
-  const recipients = rule
-    ? rule.recipients
-    : existing
-      ? sops.recipientsOf(existing)
-      : []
+  const { recipients, source, rule } = recipientsFor(file, existing)
   if (recipients.length === 0) {
     throw new OnesecretError(
-      store.findSopsConfig(path.dirname(file))
-        ? `no rule in .sops.yaml matches ${file}, add one with its age recipients`
-        : `no age recipient for ${file}, run "onesecret init" first`,
+      `no age recipient for ${file}: export SOPS_AGE_KEY with the key that should open it, or run "onesecret init"`,
       'ENOKEY'
     )
   }
-  assertRecipients(recipients, rule ? store.SOPS_CONFIG : file)
+  assertRecipients(recipients, source)
   const rules = existing
     ? sops.rulesOf(existing.sops)
     : withDefaultSelector((rule && rule.rules) || {})
@@ -197,86 +214,34 @@ const fromEditableYaml = text => {
   return tree
 }
 
-const withCreationRule = (text, rule) => {
-  const entry = indent =>
-    `${indent}- path_regex: ${JSON.stringify(
-      rule.path_regex
-    )}\n${indent}  age: ${JSON.stringify(rule.age)}\n`
-  const header = RULES_HEADER.exec(text)
-  if (!header) {
-    if (/^creation_rules:/m.test(text)) return null
-    return `${text}${
-      text && !text.endsWith('\n') ? '\n' : ''
-    }creation_rules:\n${entry(DEFAULT_INDENT)}`
-  }
-  const insertAt = header.index + header[0].length
-  const [, indent] = FIRST_ITEM_INDENT.exec(text.slice(insertAt)) || [
-    null,
-    DEFAULT_INDENT
-  ]
-  return text.slice(0, insertAt) + entry(indent) + text.slice(insertAt)
-}
-
-const firstRuleOf = text => {
-  try {
-    const parsed = jsYaml.load(text, { schema: jsYaml.CORE_SCHEMA })
-    return parsed && parsed.creation_rules && { ...parsed.creation_rules[0] }
-  } catch {
-    return null
-  }
-}
-
-const sopsConfigWith = (file, rule) => {
-  const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
-  const edited = withCreationRule(text, rule)
-  if (edited && isDeepStrictEqual(firstRuleOf(edited), rule)) return edited
-  const config = text ? store.readSopsConfig(file) : {}
-  config.creation_rules = [rule, ...(config.creation_rules || [])]
-  return jsYaml.dump(config, { lineWidth: -1 })
-}
-
 const initialize = options => {
-  const { cwd, dir } = resolveOptions(options)
-  const relativeDir = path.relative(cwd, dir).split(path.sep).join('/')
-  const sopsConfigFile = path.join(cwd, store.SOPS_CONFIG)
+  const { dir } = resolveOptions(options)
   const defaultFile = store.layerFileOrNew(dir, store.DEFAULT_LAYER)
-  const existingRule = store.creationRule(defaultFile)
-  if (existingRule) {
-    if (!fs.existsSync(defaultFile)) {
-      writeLayer({ file: defaultFile, existing: null }, {})
-    }
+  const existing = fs.existsSync(defaultFile)
+    ? store.readDocument(defaultFile)
+    : null
+  if (existing) {
     return {
       created: false,
-      recipient: existingRule.recipients.join(','),
-      sopsConfigFile
+      recipient: sops.recipientsOf(existing).join(','),
+      defaultFile
     }
   }
-
+  const rule = store.creationRule(defaultFile)
+  if (rule) {
+    writeLayer({ file: defaultFile, existing: null }, {})
+    return { created: false, recipient: rule.recipients.join(','), defaultFile }
+  }
   const identity = age.generateIdentity()
   const recipient = age.recipientOf(identity)
-  const prefix = relativeDir ? `^${escapeRegExp(relativeDir)}/` : '^'
-  const sopsConfig = sopsConfigWith(sopsConfigFile, {
-    path_regex: prefix + ENCRYPTED_FILES_PATTERN,
-    age: recipient
-  })
-
-  const createsDefault = !fs.existsSync(defaultFile)
-  if (createsDefault) {
-    store.writeDocument(
-      defaultFile,
-      sops.encrypt(
-        {},
-        { recipients: [recipient], rules: withDefaultSelector({}) }
-      )
+  store.writeDocument(
+    defaultFile,
+    sops.encrypt(
+      {},
+      { recipients: [recipient], rules: withDefaultSelector({}) }
     )
-  }
-  try {
-    fs.writeFileSync(sopsConfigFile, sopsConfig)
-  } catch (error) {
-    if (createsDefault) fs.rmSync(defaultFile, { force: true })
-    throw error
-  }
-  return { created: true, recipient, identity, sopsConfigFile, defaultFile }
+  )
+  return { created: true, recipient, identity, defaultFile }
 }
 
 module.exports = {
