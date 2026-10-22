@@ -1,11 +1,13 @@
 import { mkdirSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import sharp from 'sharp'
 import * as vgpu from 'vgpu/node'
 import { lensShader } from '../shaders.js'
 import { BEST_FRAME_SECONDS, autopilot, createLensEffect, layoutFor, sceneParams } from '../scene.js'
 
-const ROOT = new URL('../', import.meta.url).pathname
+const ROOT = fileURLToPath(new URL('../', import.meta.url))
 const atlasPng = PNG.sync.read(readFileSync(new URL('../atlas.png', import.meta.url)))
 const atlasPixels = new Uint8Array(atlasPng.width * atlasPng.height)
 for (let i = 0; i < atlasPixels.length; i++) atlasPixels[i] = atlasPng.data[i * 4]
@@ -37,10 +39,10 @@ export async function renderFrame (gpu, frameSpec, seconds = STILL_SECONDS) {
 const toImage = ({ pixels, width, height }) => sharp(Buffer.from(pixels), { raw: { width, height, channels: 4 } }).removeAlpha()
 
 async function renderStills (gpu, only, out) {
+  mkdirSync(`${out}/scratch`, { recursive: true })
   for (const spec of FRAMES.filter((f) => !only || only === 'all' || f.name === only)) {
     const frame = await renderFrame(gpu, spec)
     await toImage(frame).webp({ quality: 82, effort: 6 }).toFile(`${out}/${spec.name}.webp`)
-    mkdirSync(`${out}/scratch`, { recursive: true })
     await toImage(frame).png().toFile(`${out}/scratch/${spec.name}.png`)
     console.log(`${spec.name} ${frame.width}x${frame.height}`)
   }
@@ -65,7 +67,7 @@ async function renderSequence (gpu, out) {
     .toFile(`${out}/reveal-sequence.png`)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   const mode = process.argv[2] ?? 'all'
   const out = process.argv[3] ?? ROOT
   const gpu = await vgpu.init()

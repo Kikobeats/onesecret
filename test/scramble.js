@@ -13,7 +13,7 @@ const seededRandom = seed => () => {
   return ((value ^ (value >>> 14)) >>> 0) / 4294967296
 }
 
-const harness = ({ reducedMotion = false, ...options } = {}) => {
+const harness = ({ reducedMotion = false, seed = 42, ...options } = {}) => {
   const queue = new Map()
   let nextId = 1
   let time = 0
@@ -23,7 +23,7 @@ const harness = ({ reducedMotion = false, ...options } = {}) => {
   const scramble = import('../docs/cover/scramble.js').then(
     ({ createScramble }) =>
       createScramble(node, {
-        random: seededRandom(42),
+        random: seededRandom(seed),
         requestFrame: callback => {
           queue.set(nextId, callback)
           return nextId++
@@ -89,14 +89,16 @@ test('never scrambles ignored characters', async t => {
   t.is(h.node.textContent, text)
 })
 
-test('reduced motion shows the text on the first drawn frame', async t => {
-  const text = 'npm install onesecret'
-  const h = harness({ reducedMotion: true, scramble: 6 })
-  const scramble = await h.scramble
-  scramble.play(text)
-  h.run()
-  t.deepEqual(h.frames, [text])
-  t.is(h.ended(), 1)
+test('reduced motion shows the text on the first drawn frame, whatever the randomness', async t => {
+  const text = 'Keep just one secret to decrypt the rest.'
+  for (let seed = 1; seed <= 200; seed++) {
+    const h = harness({ reducedMotion: true, scramble: 6, seed })
+    const scramble = await h.scramble
+    scramble.play(text)
+    h.run()
+    t.deepEqual(h.frames, [text], `seed ${seed}`)
+    t.is(h.ended(), 1)
+  }
 })
 
 test('playing a new text morphs from the previous one', async t => {

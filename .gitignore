@@ -34,3 +34,8 @@ coverage
 ############################
 .env
 .envrc
+
+############################
+# Cover build scratch output
+############################
+docs/cover/scratch

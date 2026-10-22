@@ -47,7 +47,8 @@ export function createScramble (node, options = {}) {
   const unlessIgnored = (value, replacement) =>
     settings.ignore.includes(`${value}`) ? value : replacement
 
-  const scrambles = () => randomInt(0, 10) >= (1 - settings.chance) * 10
+  const scrambles = () =>
+    settings.chance > 0 && randomInt(0, 10) >= (1 - settings.chance) * 10
 
   const seedForward = () => {
     if (scrambleIndex === text.length) return

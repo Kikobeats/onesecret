@@ -4,7 +4,10 @@
 
 `scramble.js` is a vanilla JavaScript port of [use-scramble](https://github.com/tol-is/use-scramble) 2.2.15.
 
-One deviation: upstream pre-places the character after the next one while resizing, so a space shows up one position early. The port places the next character.
+Two deviations, both fixes:
+
+- Upstream pre-places the character after the next one while resizing, so a space shows up one position early. The port places the next character.
+- Upstream still scrambles about one character in eleven with `chance: 0`, which reduced motion relies on. The port never scrambles at `chance: 0`.
 
 ```
 MIT License
