@@ -172,19 +172,23 @@ const updateLayer = (options, layer, update) => {
   return writeLayer(current, update({ ...current.tree }))
 }
 
-const parseAssignment = assignment => {
-  const separator = assignment.indexOf('=')
-  if (separator < 1) {
-    throw new OnesecretError(`"${assignment}" is not NAME=value`, 'EVALUE')
+const set = (options, layer, name, readValue) => {
+  const current = readLayer(options, layer)
+  const { rules } = encryptionFor(current.file, current.existing)
+  assertWritable({ [name]: '' }, [name], rules)
+  const previous = current.tree[name]
+  const shown =
+    previous === undefined || previous === null ? '' : String(previous)
+  const value = readValue(shown)
+  if (previous !== undefined && previous !== null && shown === value) {
+    return { file: current.file, status: 'unchanged' }
   }
-  return [assignment.slice(0, separator), assignment.slice(separator + 1)]
+  if (value === null || value === '') {
+    return { file: current.file, status: 'cancelled' }
+  }
+  writeLayer(current, { ...current.tree, [name]: value })
+  return { file: current.file, status: 'encrypted' }
 }
-
-const set = (options, layer, assignments) =>
-  updateLayer(options, layer, tree => ({
-    ...tree,
-    ...Object.fromEntries(assignments.map(parseAssignment))
-  }))
 
 const unset = (options, layer, secretNames) =>
   updateLayer(options, layer, tree => {
@@ -234,7 +238,9 @@ const initialRecipients = defaultFile => {
   const rule = store.creationRule(defaultFile)
   if (rule) return { recipients: rule.recipients, source: store.SOPS_CONFIG }
   const exported = exportedRecipients()
-  if (exported.length > 0) { return { recipients: exported, source: 'SOPS_AGE_KEY' } }
+  if (exported.length > 0) {
+    return { recipients: exported, source: 'SOPS_AGE_KEY' }
+  }
   return null
 }
 

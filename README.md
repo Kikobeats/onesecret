@@ -54,10 +54,12 @@ password manager and as SOPS_AGE_KEY in CI. To use it in this shell:
 
 ```bash
 $ export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
-$ npx onesecret set DATABASE_URL=postgres://localhost/app STRIPE_KEY=sk_test_123
-$ npx onesecret set --env production DATABASE_URL=postgres://db.internal/app
+$ npx onesecret set DATABASE_URL
+$ npx onesecret set --env production DATABASE_URL
 $ git add config
 ```
+
+`set` opens `$EDITOR` for the value, so it never lands in your shell history or the process list. In a script, pipe it instead: `printf %s "$VALUE" | npx onesecret set NAME`.
 
 **3. Load them as the first thing your app does.**
 
@@ -118,7 +120,7 @@ Export the project's key from your password manager. That is all: every encrypte
 
 ```bash
 $ export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
-$ npx onesecret set --env staging DATABASE_URL=postgres://db.staging/app
+$ npx onesecret set --env staging DATABASE_URL
 ```
 
 ### Migrate an existing project
@@ -126,7 +128,7 @@ $ npx onesecret set --env staging DATABASE_URL=postgres://db.staging/app
 Give your coding agent this prompt:
 
 ```
-Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/<env>.yml, encrypt secrets with npx onesecret set --env <env> NAME=value only on your own machine or a trusted CI runner (the value is in the process list while set runs), replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.
+Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/<env>.yml, encrypt each secret by piping its value into npx onesecret set --env <env> NAME, replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.
 ```
 
 ## Deploy
@@ -455,7 +457,8 @@ Usage
 Commands
   init                      Write config/default.enc.yml for a new age key it prints once,
                             or for SOPS_AGE_KEY when exported
-  set NAME=value...         Encrypt one or more secrets into a layer
+  set NAME                  Encrypt a secret into a layer, typed in $EDITOR
+                            (or read from stdin when piped)
   unset NAME...             Remove secrets from a layer
   edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
                             (a plain .yml or .json file opens as it is)
@@ -478,14 +481,16 @@ Options
 
 Examples
   $ onesecret init
-  $ onesecret set DATABASE_URL=postgres://localhost/app
-  $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
+  $ onesecret set DATABASE_URL
+  $ printf %s "$TOKEN" | onesecret set --env production API_TOKEN
   $ onesecret edit config/production.enc.yml
   $ onesecret exec -- node server.js
   $ onesecret dotenv --env production --json
 ```
 
 ### set
+
+In a terminal, `set NAME` opens `$EDITOR` on the current value: the newline the editor adds at the end is dropped, and saving an empty file cancels. When stdin is piped, `set` waits until it closes and stores the bytes as they are, so pipe with `printf %s` rather than `echo`, which adds a newline. It refuses an empty value, text that is not UTF-8, and NUL bytes; to store an empty value, use `onesecret edit`. Values never go on the command line, so they stay out of shell history and the process list.
 
 `set`, and `edit` of an encrypted file, only accept names that are valid environment variables, refuse `sops` (reserved for the file metadata), and refuse to write a value that the file's rules would leave in plaintext. A name ending in `_unencrypted` is stored in plaintext on purpose, as sops does.
 

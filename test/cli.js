@@ -7,13 +7,42 @@ const yaml = require('js-yaml')
 const { render } = require('../src/cli')
 const {
   FIXTURE_KEY,
-  cli,
+  cli: rawCli,
   fakeBinary,
   project,
   temporaryDir
 } = require('./helpers')
 
 const withKey = { SOPS_AGE_KEY: FIXTURE_KEY }
+
+const FLAGS_WITH_VALUE = ['--env', '-e', '--dir', '--cwd']
+
+const setThroughStdin = (args, options) => {
+  const flags = []
+  const pairs = []
+  for (let i = 1; i < args.length; i++) {
+    if (FLAGS_WITH_VALUE.includes(args[i])) {
+      flags.push(args[i], args[++i])
+      continue
+    }
+    const separator = args[i].indexOf('=')
+    if (separator === -1) {
+      throw new Error(`setThroughStdin needs NAME=value, got ${args[i]}`)
+    }
+    pairs.push([args[i].slice(0, separator), args[i].slice(separator + 1)])
+  }
+  let result
+  for (const [name, value] of pairs) {
+    result = rawCli(['set', ...flags, name], { ...options, input: value })
+    if (result.code !== 0) return result
+  }
+  return result
+}
+
+const cli = (args, options) =>
+  args[0] === 'set' && args.slice(1).some(arg => arg.includes('='))
+    ? setThroughStdin(args, options)
+    : rawCli(args, options)
 
 const recipientsIn = file =>
   yaml
@@ -95,10 +124,7 @@ test('set, get, ls, unset, and dotenv work across layers', t => {
     cli(['get', 'NOPE'], { cwd, env }).stderr,
     /"NOPE" is not set in any layer/
   )
-  t.regex(
-    cli(['set', 'NOEQUALS'], { cwd, env }).stderr,
-    /"NOEQUALS" is not NAME=value/
-  )
+  t.regex(cli(['set', 'NOEQUALS'], { cwd, env }).stderr, /no value on stdin/)
   t.is(cli(['set', 'NOTE_unencrypted=public'], { cwd, env }).code, 0)
   t.true(
     fs
@@ -227,7 +253,7 @@ test('help, version, and usage errors', t => {
   const unknown = cli(['nope'])
   t.is(unknown.code, 1)
   t.regex(unknown.stderr, /unknown command "nope"/)
-  t.regex(cli(['set']).stderr, /set needs at least one NAME=value/)
+  t.regex(cli(['set']).stderr, /set takes one NAME/)
   t.regex(cli(['unset']).stderr, /unset needs at least one NAME/)
   t.regex(cli(['get']).stderr, /get needs exactly one NAME/)
 })
@@ -372,10 +398,10 @@ test('get prints the exact value when piped, so stdin readers store no newline',
   const cwd = temporaryDir('get-exact')
   const env = freshHome()
   init(cwd, env)
-  cli(['set', 'PEM=line1\nline2', 'EMPTY='], { cwd, env })
+  cli(['set', 'PEM=line1\nline2'], { cwd, env })
+  cli(['set', 'OTHER=x'], { cwd, env })
   t.is(cli(['get', 'PEM'], { cwd, env }).rawStdout, 'line1\nline2')
-  t.is(cli(['get', 'EMPTY'], { cwd, env }).rawStdout, '')
-  t.is(cli(['ls'], { cwd, env }).rawStdout, 'PEM\nEMPTY\n')
+  t.is(cli(['ls'], { cwd, env }).rawStdout, 'PEM\nOTHER\n')
 })
 
 test('dotenv --json writes numbers as strings and refuses what dotenv refuses', t => {
@@ -1229,4 +1255,323 @@ test('init adopts an exported key, and refuses to start a second key next to exi
   )
   t.notRegex(refused.stdout, /AGE-SECRET-KEY/)
   t.false(fs.existsSync(path.join(existing, 'config', 'default.enc.yml')))
+})
+
+test('set takes one NAME and refuses NAME=value, so values stay out of argv', t => {
+  const cwd = temporaryDir('set-contract')
+  const env = freshHome()
+  init(cwd, env)
+  for (const args of [['set', 'TOKEN=secret'], ['set', 'A', 'B'], ['set']]) {
+    const result = rawCli(args, { cwd, env, input: 'value' })
+    t.is(result.code, 1, args.join(' '))
+    t.regex(
+      result.stderr,
+      /set takes one NAME: the value comes from \$EDITOR, or from stdin when piped/
+    )
+  }
+  t.is(rawCli(['ls'], { cwd, env }).stdout, '')
+})
+
+test('set reads the exact value from stdin, and get gives it back', t => {
+  const cwd = temporaryDir('set-stdin')
+  const env = freshHome()
+  init(cwd, env)
+  const pem = '-----BEGIN KEY-----\nMIIB\n-----END KEY-----\n'
+  const result = rawCli(['set', '--env', 'production', 'PEM'], {
+    cwd,
+    env,
+    input: pem
+  })
+  t.is(result.code, 0)
+  t.is(result.stdout, 'config/production.enc.yml encrypted')
+  t.is(
+    rawCli(['get', '--env', 'production', 'PEM'], { cwd, env }).rawStdout,
+    pem
+  )
+})
+
+test('set refuses empty stdin and writes nothing', t => {
+  const cwd = temporaryDir('set-empty')
+  const env = freshHome()
+  init(cwd, env)
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  const before = fs.readFileSync(file, 'utf8')
+  const result = rawCli(['set', 'TOKEN'], { cwd, env, input: '' })
+  t.is(result.code, 1)
+  t.regex(result.stderr, /no value on stdin/)
+  t.is(fs.readFileSync(file, 'utf8'), before)
+})
+
+test('set checks the name before reading the value', t => {
+  const cwd = temporaryDir('set-name-first')
+  const env = freshHome()
+  init(cwd, env)
+  t.regex(
+    rawCli(['set', 'BAD-NAME'], { cwd, env }).stderr,
+    /not a valid environment variable name/
+  )
+  t.regex(
+    rawCli(['set', 'sops'], { cwd, env }).stderr,
+    /reserved for the file metadata/
+  )
+})
+
+test('set leaves the file untouched when the value is unchanged', t => {
+  const cwd = temporaryDir('set-unchanged')
+  const env = freshHome()
+  init(cwd, env)
+  rawCli(['set', 'TOKEN'], { cwd, env, input: 'same' })
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  const before = fs.readFileSync(file, 'utf8')
+  const result = rawCli(['set', 'TOKEN'], { cwd, env, input: 'same' })
+  t.is(result.code, 0)
+  t.is(result.stdout, 'TOKEN unchanged in config/default.enc.yml')
+  t.is(fs.readFileSync(file, 'utf8'), before)
+})
+
+test.serial(
+  'set in a terminal opens $EDITOR on the current value, privately',
+  t => {
+    const { readSetValue } = require('../src/cli')
+    const editorEnv = process.env.EDITOR
+    const visualEnv = process.env.VISUAL
+    delete process.env.VISUAL
+    const useEditor = script => {
+      process.env.EDITOR = fakeBinary('set-editor', script).file
+    }
+    try {
+      useEditor(
+        "const fs = require('fs'); const file = process.argv[2]; const mode = (fs.statSync(file).mode & 0o777).toString(8); fs.writeFileSync(file, fs.readFileSync(file, 'utf8') + '-edited ' + mode + '\\n')"
+      )
+      t.is(
+        readSetValue('TOKEN', 'old', { interactive: true }),
+        'old-edited 600'
+      )
+      useEditor(
+        "require('fs').writeFileSync(process.argv[2], 'line1\\nline2\\n\\n')"
+      )
+      t.is(
+        readSetValue('TOKEN', undefined, { interactive: true }),
+        'line1\nline2\n'
+      )
+      useEditor("require('fs').writeFileSync(process.argv[2], '\\n')")
+      t.is(readSetValue('TOKEN', 'old', { interactive: true }), null)
+      useEditor('process.exit(1)')
+      t.is(
+        t.throws(() => readSetValue('TOKEN', 'old', { interactive: true }))
+          .code,
+        'EUSAGE'
+      )
+    } finally {
+      if (editorEnv === undefined) delete process.env.EDITOR
+      else process.env.EDITOR = editorEnv
+      if (visualEnv !== undefined) process.env.VISUAL = visualEnv
+    }
+  }
+)
+
+const BIN = path.join(__dirname, '..', 'bin', 'index.js')
+
+test('set waits for a slow pipe instead of failing on an empty read', t => {
+  const cwd = temporaryDir('set-slow-pipe')
+  const env = freshHome()
+  init(cwd, env)
+  const shell = command =>
+    require('node:child_process').spawnSync('sh', ['-c', command], {
+      cwd,
+      encoding: 'utf8',
+      env: { ...process.env, ...env }
+    })
+  const node = `"${process.execPath}" "${BIN}"`
+  const late = shell(`(sleep 0.3; printf late) | ${node} set LATE`)
+  t.is(late.status, 0, late.stderr)
+  t.is(rawCli(['get', 'LATE'], { cwd, env }).rawStdout, 'late')
+  const copied = shell(`${node} get LATE | ${node} set --env production LATE`)
+  t.is(copied.status, 0, copied.stderr)
+  t.is(
+    rawCli(['get', '--env', 'production', 'LATE'], { cwd, env }).rawStdout,
+    'late'
+  )
+})
+
+test('set refuses bytes that are not UTF-8 and NUL bytes', t => {
+  const cwd = temporaryDir('set-bytes')
+  const env = freshHome()
+  init(cwd, env)
+  const binary = rawCli(['set', 'BIN'], {
+    cwd,
+    env,
+    input: Buffer.from([0xff, 0xfe, 0x7a])
+  })
+  t.is(binary.code, 1)
+  t.regex(binary.stderr, /not valid UTF-8/)
+  const nul = rawCli(['set', 'NUL'], { cwd, env, input: 'a\u0000b' })
+  t.is(nul.code, 1)
+  t.regex(nul.stderr, /NUL byte/)
+  t.is(rawCli(['ls'], { cwd, env }).stdout, '')
+})
+
+test('set keeps a leading UTF-8 BOM in a piped value', t => {
+  const cwd = temporaryDir('set-bom')
+  const env = freshHome()
+  init(cwd, env)
+  const value = Buffer.concat([
+    Buffer.from([0xef, 0xbb, 0xbf]),
+    Buffer.from('secret')
+  ])
+  const result = rawCli(['set', 'BOM'], { cwd, env, input: value })
+  t.is(result.code, 0, result.stderr)
+  t.is(rawCli(['get', 'BOM'], { cwd, env }).rawStdout, '\uFEFFsecret')
+})
+
+test.serial(
+  'the editor keeps a value that ends in a newline when nothing changes',
+  t => {
+    const { readSetValue } = require('../src/cli')
+    const editorEnv = process.env.EDITOR
+    const visualEnv = process.env.VISUAL
+    delete process.env.VISUAL
+    try {
+      process.env.EDITOR = fakeBinary('noop-set-editor', '').file
+      t.is(readSetValue('TOKEN', 'tok\n', { interactive: true }), 'tok\n')
+      process.env.EDITOR = fakeBinary(
+        'newline-editor',
+        "require('fs').appendFileSync(process.argv[2], '\\n')"
+      ).file
+      t.is(readSetValue('TOKEN', 'tok', { interactive: true }), 'tok')
+      t.is(readSetValue('TOKEN', 'tok\n', { interactive: true }), 'tok\n')
+    } finally {
+      if (editorEnv === undefined) delete process.env.EDITOR
+      else process.env.EDITOR = editorEnv
+      if (visualEnv !== undefined) process.env.VISUAL = visualEnv
+    }
+  }
+)
+
+test('set shows a null value as empty, not as the text null', t => {
+  const cwd = temporaryDir('set-null')
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const write = require('../src/write')
+  store.writeDocument(
+    path.join(cwd, 'config', 'default.enc.yml'),
+    sops.encrypt(
+      { NOTHING: null },
+      { recipients: [require('../src/age').recipientOf(FIXTURE_KEY)] }
+    )
+  )
+  const previousKey = process.env.SOPS_AGE_KEY
+  process.env.SOPS_AGE_KEY = FIXTURE_KEY
+  try {
+    let shown
+    const result = write.set({ cwd }, 'default', 'NOTHING', current => {
+      shown = current
+      return 'value'
+    })
+    t.is(shown, '')
+    t.is(result.status, 'encrypted')
+  } finally {
+    if (previousKey === undefined) delete process.env.SOPS_AGE_KEY
+    else process.env.SOPS_AGE_KEY = previousKey
+  }
+})
+
+const terminalCli = (args, { cwd, env, editor }) => {
+  const childEnv = { ...process.env, ...env, EDITOR: editor }
+  delete childEnv.VISUAL
+  const result = require('node:child_process').spawnSync(
+    'python3',
+    [
+      '-c',
+      [
+        'import os, sys, pty',
+        'cmd = sys.argv[1:]',
+        'pid, fd = pty.fork()',
+        'if pid == 0:',
+        '    try:',
+        '        os.execv(cmd[0], cmd)',
+        '    finally:',
+        '        os._exit(127)',
+        'while True:',
+        '    try:',
+        '        chunk = os.read(fd, 4096)',
+        '    except OSError:',
+        '        break',
+        '    if not chunk:',
+        '        break',
+        '    sys.stdout.buffer.write(chunk)',
+        '_, status = os.waitpid(pid, 0)',
+        'sys.exit(os.WEXITSTATUS(status) if os.WIFEXITED(status) else 1)'
+      ].join('\n'),
+      process.execPath,
+      BIN,
+      ...args
+    ],
+    { cwd, env: childEnv, encoding: 'utf8' }
+  )
+  return {
+    code: result.status,
+    stdout: (result.stdout || '').replaceAll('\r', '').trim(),
+    stderr: `${result.stderr || ''}${result.error || ''}`.trim()
+  }
+}
+
+test('an empty editor save cancels a missing or null secret and leaves a blank value unchanged', t => {
+  const age = require('../src/age')
+  const sops = require('../src/sops')
+  const store = require('../src/store')
+  const cwd = temporaryDir('set-blank')
+  const env = freshHome()
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  const blankEditor = script => fakeBinary('blank-set-editor', script).file
+  const setInTerminal = (name, editor) =>
+    terminalCli(['set', name], { cwd, env, editor })
+  init(cwd, env)
+  t.is(
+    setInTerminal(
+      'TOKEN',
+      blankEditor("require('fs').writeFileSync(process.argv[2], 'kept\\n')")
+    ).stdout,
+    'config/default.enc.yml encrypted'
+  )
+  t.is(rawCli(['get', 'TOKEN'], { cwd, env }).rawStdout, 'kept')
+
+  const kept = fs.readFileSync(file, 'utf8')
+  for (const script of [
+    "require('fs').writeFileSync(process.argv[2], '\\n')",
+    "require('fs').writeFileSync(process.argv[2], '\\r\\n')",
+    "require('fs').writeFileSync(process.argv[2], '')"
+  ]) {
+    const cancelled = setInTerminal('GHOST', blankEditor(script))
+    t.is(cancelled.code, 0, cancelled.stderr)
+    t.is(cancelled.stdout, 'GHOST not set, the value was empty')
+    t.is(fs.readFileSync(file, 'utf8'), kept)
+  }
+  const cleared = setInTerminal(
+    'TOKEN',
+    blankEditor("require('fs').writeFileSync(process.argv[2], '\\n')")
+  )
+  t.is(cleared.stdout, 'TOKEN not set, the value was empty')
+  t.is(rawCli(['get', 'TOKEN'], { cwd, env }).rawStdout, 'kept')
+
+  store.writeDocument(
+    file,
+    sops.encrypt(
+      { NOTHING: null, EMPTY: '' },
+      { recipients: [age.recipientOf(env.SOPS_AGE_KEY)] }
+    )
+  )
+  const blanks = fs.readFileSync(file, 'utf8')
+  const editor = blankEditor(
+    "require('fs').writeFileSync(process.argv[2], '\\n')"
+  )
+  t.is(
+    setInTerminal('NOTHING', editor).stdout,
+    'NOTHING not set, the value was empty'
+  )
+  t.is(
+    setInTerminal('EMPTY', editor).stdout,
+    'EMPTY unchanged in config/default.enc.yml'
+  )
+  t.is(fs.readFileSync(file, 'utf8'), blanks)
 })
