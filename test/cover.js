@@ -86,5 +86,6 @@ test('the cover copies the migration prompt from the README', t => {
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>')
   t.is(copied, prompt)
-  t.true(prompt.includes('process list'))
+  t.true(prompt.includes('piping its value into npx onesecret set'))
+  t.false(prompt.includes('NAME=value'))
 })

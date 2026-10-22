@@ -3,6 +3,7 @@
 const { spawn, spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
+const tty = require('node:tty')
 const path = require('node:path')
 const mri = require('mri')
 const secrets = require('./secrets')
@@ -199,8 +200,7 @@ const editInWorkspace = (target, copy) => {
   }
 }
 
-const edit = (flags, args) => {
-  const target = editTargetOf(flags, args)
+const withWorkspace = use => {
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'onesecret-'))
   const removeWorkspace = () =>
     fs.rmSync(workspace, { recursive: true, force: true })
@@ -210,12 +210,67 @@ const edit = (flags, args) => {
   }
   for (const signal of EDIT_SIGNALS) process.on(signal, onSignal)
   try {
-    return editInWorkspace(target, path.join(workspace, target.workspaceName))
+    return use(workspace)
   } finally {
     removeWorkspace()
     for (const signal of EDIT_SIGNALS) process.off(signal, onSignal)
   }
 }
+
+const edit = (flags, args) => {
+  const target = editTargetOf(flags, args)
+  return withWorkspace(workspace =>
+    editInWorkspace(target, path.join(workspace, target.workspaceName))
+  )
+}
+
+const SET_USAGE =
+  'set takes one NAME: the value comes from $EDITOR, or from stdin when piped'
+
+const EDITOR_NEWLINES = ['', '\n', '\r\n']
+const STRICT_UTF8 = new TextDecoder('utf-8', { fatal: true })
+
+const assertStorable = value => {
+  if (value.includes('\0')) {
+    throw new OnesecretError(
+      'the value contains a NUL byte, which no environment variable can hold',
+      'EVALUE'
+    )
+  }
+  return value
+}
+
+const valueFromEditor = (name, current = '') =>
+  withWorkspace(workspace => {
+    const file = path.join(workspace, name)
+    fs.writeFileSync(file, current, { mode: 0o600 })
+    const saved = openEditor(file)
+    if (EDITOR_NEWLINES.some(newline => saved === current + newline)) {
+      return current
+    }
+    const value = saved.replace(/\r?\n$/, '')
+    return value === '' ? null : assertStorable(value)
+  })
+
+const valueFromStdin = () => {
+  let value
+  try {
+    value = STRICT_UTF8.decode(fs.readFileSync(0))
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error
+    throw new OnesecretError('the value on stdin is not valid UTF-8', 'EVALUE')
+  }
+  if (value === '') {
+    throw new OnesecretError(
+      'no value on stdin, pipe the value or run set in a terminal to open $EDITOR',
+      'EUSAGE'
+    )
+  }
+  return assertStorable(value)
+}
+
+const readSetValue = (name, current, { interactive = tty.isatty(0) } = {}) =>
+  interactive ? valueFromEditor(name, current) : valueFromStdin()
 
 const exec = (flags, command) => {
   if (command.length === 0) usage('exec needs a command after --')
@@ -269,10 +324,17 @@ const COMMANDS = {
     ].join('\n')
   },
   set: (flags, args) => {
-    if (args.length === 0) usage('set needs at least one NAME=value')
-    return `${relative(
-      write.set(writeOptions(flags), writeLayerOf(flags), args)
-    )} encrypted`
+    if (args.length !== 1 || args[0].includes('=')) usage(SET_USAGE)
+    const [name] = args
+    const { file, status } = write.set(
+      writeOptions(flags),
+      writeLayerOf(flags),
+      name,
+      current => readSetValue(name, current)
+    )
+    if (status === 'cancelled') return `${name} not set, the value was empty`
+    if (status === 'unchanged') return `${name} unchanged in ${relative(file)}`
+    return `${relative(file)} encrypted`
   },
   unset: (flags, args) => {
     if (args.length === 0) usage('unset needs at least one NAME')
@@ -343,4 +405,4 @@ const render = ({ stdout, exact = false }, isTTY) => {
   return stdout ? `${stdout}\n` : ''
 }
 
-module.exports = { render, run }
+module.exports = { readSetValue, render, run }

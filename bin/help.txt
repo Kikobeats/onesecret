@@ -4,7 +4,8 @@ Usage
 Commands
   init                      Write config/default.enc.yml for a new age key it prints once,
                             or for SOPS_AGE_KEY when exported
-  set NAME=value...         Encrypt one or more secrets into a layer
+  set NAME                  Encrypt a secret into a layer, typed in $EDITOR
+                            (or read from stdin when piped)
   unset NAME...             Remove secrets from a layer
   edit [file]               Open an encrypted file decrypted in $EDITOR, encrypt it on save
                             (a plain .yml or .json file opens as it is)
@@ -27,8 +28,8 @@ Options
 
 Examples
   $ onesecret init
-  $ onesecret set DATABASE_URL=postgres://localhost/app
-  $ onesecret set --env production DATABASE_URL=postgres://db.internal/app
+  $ onesecret set DATABASE_URL
+  $ printf %s "$TOKEN" | onesecret set --env production API_TOKEN
   $ onesecret edit config/production.enc.yml
   $ onesecret exec -- node server.js
   $ onesecret dotenv --env production --json

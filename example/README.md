@@ -101,7 +101,7 @@ $ npx onesecret edit config/production.enc.yml   # opens it decrypted in $EDITOR
 $ npx onesecret edit config/production.yml       # a plain file opens as it is
 $ npx onesecret ls                               # secret names, no key needed
 $ npx onesecret get LOG_LEVEL --env production   # any value, plain or secret
-$ npx onesecret set REDIS_URL=redis://localhost:6379
+$ npx onesecret set REDIS_URL
 $ npx onesecret dotenv > .env                    # the secrets, for tools that read .env files
 $ npx onesecret exec -- node index.js            # settings and secrets reach the child, the key does not
 ```
