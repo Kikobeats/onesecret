@@ -1,7 +1,6 @@
 const PAGE_TITLE = document.title
 const SIGNATURE = /^[a-zA-Z]+\(.*\)$/
 const BACKTICKS = /`/g
-const TABLE_PIPES = /\s*\|\s*/g
 
 const HELPERS_LABEL = 'Helpers'
 
@@ -12,7 +11,9 @@ const sidebarLabel = signature =>
 
 const markSignatures = () => {
   document.querySelectorAll('.markdown-section h3').forEach(heading => {
-    if (SIGNATURE.test(heading.textContent.trim())) { heading.classList.add('signature') }
+    if (SIGNATURE.test(heading.textContent.trim())) {
+      heading.classList.add('signature')
+    }
   })
 
   document.querySelectorAll('.sidebar-nav a').forEach(link => {
@@ -31,16 +32,15 @@ const replaceInTextNodes = (element, transform) => {
   }
 }
 
-const cleanTitle = text => text.replace(BACKTICKS, '')
-const cleanSnippet = text => cleanTitle(text).replace(TABLE_PIPES, ' ')
+const withoutBackticks = text => text.replace(BACKTICKS, '')
 
 const cleanSearchResults = panel => {
   panel
     .querySelectorAll('.matching-post .title')
-    .forEach(title => replaceInTextNodes(title, cleanTitle))
+    .forEach(title => replaceInTextNodes(title, withoutBackticks))
   panel
     .querySelectorAll('.matching-post .content')
-    .forEach(snippet => replaceInTextNodes(snippet, cleanSnippet))
+    .forEach(snippet => replaceInTextNodes(snippet, withoutBackticks))
 }
 
 const watchSearchResults = () => {
@@ -66,6 +66,7 @@ window.$docsify = {
   externalLinkRel: 'noopener noreferrer',
   pageTitleFormatter: () => PAGE_TITLE,
   search: {
+    maxAge: 0,
     placeholder: 'Search',
     noData: 'No results',
     depth: 3

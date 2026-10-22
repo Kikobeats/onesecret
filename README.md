@@ -222,7 +222,7 @@ $ secrets=$(npx onesecret dotenv --env production --json) &&
     printf %s "$secrets" | npx wrangler secret bulk --name my-worker
 ```
 
-- `wrangler secret bulk` creates and deploys a new version of the Worker right away. It adds and updates but never removes: run `wrangler secret delete NAME`.
+- `wrangler secret bulk` creates and deploys a new version of the Worker right away. It adds and updates but never removes: run `wrangler secret delete NAME`. It takes at most 100 secrets per call, and a Worker holds 128 variables in total on the Paid plan, 64 on Free.
 - A Worker has no project directory at runtime. Attach the config files as modules and point `config()` at them:
 
 ```toml

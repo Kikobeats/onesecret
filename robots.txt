@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://kikobeats.github.io/onesecret/sitemap.xml
