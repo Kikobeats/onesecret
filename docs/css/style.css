@@ -588,6 +588,14 @@ main > .content {
   color: var(--muted-color) !important;
 }
 
+.codecopy-btn-icon {
+  fill: currentColor;
+}
+
+.codecopy-btn:hover {
+  color: var(--accent-color) !important;
+}
+
 
 section.cover {
   display: none;
