@@ -7,9 +7,8 @@ const path = require('node:path')
 const mri = require('mri')
 const secrets = require('./secrets')
 const write = require('./write')
-const deploy = require('./deploy')
 const store = require('./store')
-const { isEnvScalar, toDotenv } = require('./format')
+const { isEnvScalar, toDotenv, toEnv } = require('./format')
 const yaml = require('./yaml')
 const { withoutAgeKey } = require('./keys')
 const { OnesecretError } = require('./error')
@@ -30,6 +29,15 @@ const readOptions = flags => ({
 })
 
 const writeOptions = flags => ({ dir: flags.dir, cwd: flags.cwd })
+
+const readLayersFor = (command, flags) => {
+  const layered = secrets.readLayers(readOptions(flags))
+  if (!flags.env) return layered
+  return secrets.requireEnvLayer(
+    layered,
+    `${command} found no "${layered.env}" layer in ${layered.dir}, check the --env name`
+  )
+}
 
 const writeLayerOf = flags => flags.env || 'default'
 
@@ -213,7 +221,7 @@ const exec = (flags, command) => {
   if (command.length === 0) usage('exec needs a command after --')
   const env = withoutAgeKey(process.env)
   if (flags.env) env.NODE_ENV = flags.env
-  secrets.fill(
+  secrets.writeEnv(
     { ...readOptions(flags), processEnv: env },
     { allowKeyCommand: true }
   )
@@ -277,7 +285,7 @@ const COMMANDS = {
     `${relative(
       write.rekey(writeOptions(flags), writeLayerOf(flags))
     )} encrypted with a new data key`,
-  ls: flags => secrets.names(readOptions(flags)).join('\n'),
+  ls: flags => secrets.namesOf(readLayersFor('ls', flags)).join('\n'),
   get: (flags, args) => {
     if (args.length !== 1) usage('get needs exactly one NAME')
     const values = secrets.get(readOptions(flags), args[0])
@@ -285,33 +293,19 @@ const COMMANDS = {
       throw new OnesecretError(`"${args[0]}" is not set in any layer`, 'EVALUE')
     }
     const value = values[args[0]]
-    if (value === null) return ''
-    return isEnvScalar(value) ? String(value) : yaml.dump(value).trimEnd()
+    if (value === null) return { stdout: '', exact: true }
+    return {
+      stdout: isEnvScalar(value) ? String(value) : yaml.dump(value).trimEnd(),
+      exact: true
+    }
   },
-  dotenv: flags =>
-    toDotenv(
-      secrets.loadSecrets(secrets.readLayers(readOptions(flags)))
-    ).trimEnd(),
-  exec: (flags, args) => exec(flags, args),
-  kubernetes: flags => {
-    const { checksum, output } = deploy.kubernetes({
-      ...readOptions(flags),
-      name: flags.name,
-      namespace: flags.namespace,
-      context: flags.context
-    })
-    if (output) console.error(output)
-    return checksum
+  dotenv: flags => {
+    const loaded = secrets.loadSecrets(readLayersFor('dotenv', flags))
+    return flags.json
+      ? JSON.stringify(toEnv(loaded))
+      : toDotenv(loaded).trimEnd()
   },
-  fly: flags => {
-    const { checksum, output } = deploy.fly({
-      ...readOptions(flags),
-      app: flags.app,
-      stage: flags.stage
-    })
-    if (output) console.error(output)
-    return checksum
-  }
+  exec: (flags, args) => exec(flags, args)
 }
 
 const parse = argv => {
@@ -322,10 +316,9 @@ const parse = argv => {
     _: [command, ...args],
     ...flags
   } = mri(own, {
-    boolean: ['help', 'version', 'stage'],
-    string: ['dir', 'env', 'cwd', 'name', 'namespace', 'context', 'app'],
-    alias: { h: 'help', v: 'version', e: 'env', n: 'namespace' },
-    default: { stage: true }
+    boolean: ['help', 'version', 'json'],
+    string: ['dir', 'env', 'cwd'],
+    alias: { h: 'help', v: 'version', e: 'env' }
   })
   return {
     command,
@@ -340,8 +333,14 @@ const run = async argv => {
   if (flags.help || !command) return { stdout: HELP.trimEnd() }
   const handler = COMMANDS[command]
   if (!handler) usage(`unknown command "${command}"`)
+  if (flags.json && command !== 'dotenv') usage('--json only works with dotenv')
   const result = await handler(flags, args)
   return typeof result === 'object' ? result : { stdout: result }
 }
 
-module.exports = { run }
+const render = ({ stdout, exact = false }, isTTY) => {
+  if (exact && !isTTY) return stdout
+  return stdout ? `${stdout}\n` : ''
+}
+
+module.exports = { render, run }

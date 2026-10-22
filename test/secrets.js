@@ -5,9 +5,14 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { default: test } = require('ava')
 const onesecret = require('../src')
+const secrets = require('../src/secrets')
+
+const load = input => secrets.loadLayers(secrets.readLayers(input))
+const names = input => secrets.namesOf(secrets.readLayers(input))
 const age = require('../src/age')
 const {
   FIXTURE_KEY,
+  OTHER_KEY,
   fakeBinary,
   project,
   temporaryDir,
@@ -43,29 +48,26 @@ const keyCommandPrinting = key => {
 
 test('names come from the default layer plus the env layer, without a key', t => {
   const cwd = project({ fixture: 'app' })
+  t.deepEqual(names({ cwd, env: 'development' }), Object.keys(DEFAULT_SECRETS))
   t.deepEqual(
-    onesecret.names({ cwd, env: 'development' }),
-    Object.keys(DEFAULT_SECRETS)
-  )
-  t.deepEqual(
-    onesecret.names({ cwd, env: 'production' }),
+    names({ cwd, env: 'production' }),
     Object.keys(PRODUCTION_SECRETS)
   )
-  t.deepEqual(onesecret.names({ cwd: temporaryDir('empty') }), [])
+  t.deepEqual(names({ cwd: temporaryDir('empty') }), [])
 })
 
 test.serial('load merges the env layer over the default layer', t => {
   const cwd = project({ fixture: 'app' })
   withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
-    t.deepEqual(onesecret.load({ cwd, env: 'development' }), DEFAULT_SECRETS)
-    t.deepEqual(onesecret.load({ cwd, env: 'production' }), PRODUCTION_SECRETS)
+    t.deepEqual(load({ cwd, env: 'development' }), DEFAULT_SECRETS)
+    t.deepEqual(load({ cwd, env: 'production' }), PRODUCTION_SECRETS)
   })
 })
 
 test.serial('the env layer defaults to NODE_ENV', t => {
   const cwd = project({ fixture: 'app' })
   withEnv({ SOPS_AGE_KEY: FIXTURE_KEY, NODE_ENV: 'production' }, () => {
-    t.is(onesecret.load({ cwd }).DATABASE_URL, 'postgres://fixture-production')
+    t.is(load({ cwd }).DATABASE_URL, 'postgres://fixture-production')
   })
 })
 
@@ -76,23 +78,23 @@ test.serial(
     const keyFile = path.join(temporaryDir('key'), 'keys.txt')
     fs.writeFileSync(keyFile, `# test\n${FIXTURE_KEY}\n`)
     withEnv({ SOPS_AGE_KEY_FILE: keyFile }, () => {
-      t.is(onesecret.load({ cwd }).S3_KEY, 'AKIA-default')
+      t.is(load({ cwd }).S3_KEY, 'AKIA-default')
     })
     const xdg = temporaryDir('xdg')
     fs.mkdirSync(path.join(xdg, 'sops', 'age'), { recursive: true })
     fs.writeFileSync(path.join(xdg, 'sops', 'age', 'keys.txt'), FIXTURE_KEY)
     withEnv({ XDG_CONFIG_HOME: xdg }, () => {
-      t.is(onesecret.load({ cwd }).S3_KEY, 'AKIA-default')
+      t.is(load({ cwd }).S3_KEY, 'AKIA-default')
     })
     withEnv({ SOPS_AGE_KEY_FILE: '/nonexistent/keys.txt' }, () => {
-      t.is(t.throws(() => onesecret.load({ cwd })).code, 'EKEY')
+      t.is(t.throws(() => load({ cwd })).code, 'EKEY')
     })
   }
 )
 
 test.serial('without any key, load fails with ENOKEY', t => {
   const cwd = project({ fixture: 'app' })
-  t.is(t.throws(() => onesecret.load({ cwd })).code, 'ENOKEY')
+  t.is(t.throws(() => load({ cwd })).code, 'ENOKEY')
 })
 
 test.serial(
@@ -103,23 +105,20 @@ test.serial(
       fixture: 'app',
       packageJson: { onesecret: { keyCommand: command } }
     })
-    t.deepEqual(onesecret.load({ cwd, env: 'production' }), PRODUCTION_SECRETS)
-    t.deepEqual(onesecret.load({ cwd, env: 'production' }), PRODUCTION_SECRETS)
+    t.deepEqual(load({ cwd, env: 'production' }), PRODUCTION_SECRETS)
+    t.deepEqual(load({ cwd, env: 'production' }), PRODUCTION_SECRETS)
     t.is(calls(), 1)
 
     const unrelated = require('../src/age').generateIdentity()
     const other = keyCommandPrinting(FIXTURE_KEY)
     withEnv({ SOPS_AGE_KEY: unrelated }, () => {
-      t.is(
-        onesecret.load({ cwd, keyCommand: other.command }).S3_KEY,
-        'AKIA-default'
-      )
+      t.is(load({ cwd, keyCommand: other.command }).S3_KEY, 'AKIA-default')
     })
     t.is(other.calls(), 1)
 
     const matching = keyCommandPrinting(FIXTURE_KEY)
     withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
-      onesecret.load({ cwd, keyCommand: matching.command })
+      load({ cwd, keyCommand: matching.command })
     })
     t.is(matching.calls(), 0)
   }
@@ -129,7 +128,7 @@ test.serial('SOPS_AGE_KEY_CMD takes the place of keyCommand', t => {
   const { command } = keyCommandPrinting(FIXTURE_KEY)
   const cwd = project({ fixture: 'app' })
   withEnv({ SOPS_AGE_KEY_CMD: command }, () => {
-    t.is(onesecret.load({ cwd }).S3_KEY, 'AKIA-default')
+    t.is(load({ cwd }).S3_KEY, 'AKIA-default')
   })
 })
 
@@ -139,12 +138,12 @@ test.serial('a failing or silent keyCommand explains itself', t => {
     'fail-key',
     "console.error('not logged in'); process.exit(1)"
   ).file
-  const failure = t.throws(() => onesecret.load({ cwd, keyCommand: failing }))
+  const failure = t.throws(() => load({ cwd, keyCommand: failing }))
   t.is(failure.code, 'EKEY')
   t.regex(failure.message, /not logged in/)
   const silent = fakeBinary('silent-key', '').file
   t.regex(
-    t.throws(() => onesecret.load({ cwd, keyCommand: silent })).message,
+    t.throws(() => load({ cwd, keyCommand: silent })).message,
     /printed no age identity/
   )
 })
@@ -157,11 +156,11 @@ test.serial('package.json can move the config directory', t => {
     path.join(cwd, 'package.json'),
     JSON.stringify({ onesecret: { dir: 'settings' } })
   )
-  t.deepEqual(onesecret.names({ cwd }), Object.keys(DEFAULT_SECRETS))
+  t.deepEqual(names({ cwd }), Object.keys(DEFAULT_SECRETS))
 })
 
 test.serial(
-  'config fills only the unset variables and leaves the key out of them',
+  'config prefers the environment, and env fills only the unset variables without the key',
   t => {
     const cwd = project({ fixture: 'app' })
     const processEnv = { API_TOKEN: 'from-env', S3_KEY: '' }
@@ -173,6 +172,8 @@ test.serial(
         S3_KEY: '',
         PORT: 3000
       })
+      t.deepEqual(processEnv, { API_TOKEN: 'from-env', S3_KEY: '' })
+      onesecret.env({ cwd, env: 'production', processEnv })
     })
     t.is(processEnv.PORT, '3000')
     t.is(processEnv.S3_KEY, '')
@@ -232,7 +233,7 @@ test.serial(
   }
 )
 
-test.serial('config writes to process.env by default', t => {
+test.serial('env writes to process.env by default, config never does', t => {
   const cwd = project({ fixture: 'app' })
   withEnv(
     {
@@ -244,6 +245,9 @@ test.serial('config writes to process.env by default', t => {
     },
     () => {
       onesecret.config({ cwd })
+      t.is(process.env.S3_KEY, undefined)
+      t.is(process.env.PORT, undefined)
+      onesecret.env({ cwd })
       t.is(process.env.S3_KEY, 'AKIA-default')
       t.is(process.env.PORT, '3000')
     }
@@ -291,7 +295,7 @@ test('withoutAgeKey drops every age key variable', t => {
 
 test('without config files, load returns nothing but config fails', t => {
   const cwd = temporaryDir('no-files')
-  t.deepEqual(onesecret.load({ cwd }), {})
+  t.deepEqual(load({ cwd }), {})
   const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
   t.is(error.code, 'EMISSING')
   t.regex(
@@ -307,7 +311,7 @@ test('a corrupt encrypted file names itself', t => {
     path.join(cwd, 'config', 'default.enc.yml'),
     'A: [unclosed\n'
   )
-  const error = t.throws(() => onesecret.names({ cwd }))
+  const error = t.throws(() => names({ cwd }))
   t.is(error.code, 'EFORMAT')
   t.regex(error.message, /default\.enc\.yml/)
 })
@@ -321,11 +325,15 @@ test.serial(
       packageJson: { onesecret: { keyCommand: command } }
     })
     for (const env of ['production', 'staging']) {
-      const error = t.throws(() =>
-        onesecret.config({ cwd, env, processEnv: {} })
-      )
-      t.is(error.code, 'EMISSING')
-      t.regex(error.message, /API_TOKEN, S3_KEY, PORT, PUBLIC_unencrypted/)
+      for (const run of [onesecret.config, onesecret.env]) {
+        const processEnv = {}
+        const error = t.throws(() =>
+          run({ cwd, env, processEnv }, { allowKeyCommand: true })
+        )
+        t.is(error.code, 'EMISSING')
+        t.regex(error.message, /API_TOKEN, S3_KEY, PORT, PUBLIC_unencrypted/)
+        t.deepEqual(processEnv, {})
+      }
     }
     t.is(calls(), 0)
     t.is(
@@ -354,8 +362,8 @@ test.serial('a failing keyCommand runs once per process', t => {
       counter
     )}, 'x'); process.exit(1)`
   ).file
-  t.throws(() => onesecret.load({ cwd, keyCommand: failing }))
-  t.throws(() => onesecret.load({ cwd, keyCommand: failing }))
+  t.throws(() => load({ cwd, keyCommand: failing }))
+  t.throws(() => load({ cwd, keyCommand: failing }))
   t.is(fs.readFileSync(counter, 'utf8').length, 1)
 })
 
@@ -388,7 +396,7 @@ test.serial(
     withEnv(
       { SOPS_AGE_KEY: `AGE-SECRET-KEY-PQ-1QQQQQQ\n${other} ${FIXTURE_KEY}` },
       () => {
-        t.is(onesecret.load({ cwd }).S3_KEY, 'AKIA-default')
+        t.is(load({ cwd }).S3_KEY, 'AKIA-default')
       }
     )
   }
@@ -397,7 +405,7 @@ test.serial(
 test.serial('a broken key names its source and carries a code', t => {
   const cwd = project({ fixture: 'app' })
   withEnv({ SOPS_AGE_KEY: 'AGE-SECRET-KEY-1INVALID' }, () => {
-    const error = t.throws(() => onesecret.load({ cwd }))
+    const error = t.throws(() => load({ cwd }))
     t.is(error.code, 'EKEY')
     t.regex(error.message, /SOPS_AGE_KEY holds an invalid age key/)
   })
@@ -414,17 +422,17 @@ test.serial(
       'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExample user@host\n'
     )
     withEnv({ XDG_CONFIG_HOME: xdg, SOPS_AGE_KEY: FIXTURE_KEY }, () => {
-      t.is(onesecret.load({ cwd }).S3_KEY, 'AKIA-default')
+      t.is(load({ cwd }).S3_KEY, 'AKIA-default')
     })
     withEnv({ XDG_CONFIG_HOME: xdg }, () => {
-      const error = t.throws(() => onesecret.load({ cwd }))
+      const error = t.throws(() => load({ cwd }))
       t.is(error.code, 'EKEY')
       t.regex(error.message, /keys\.txt holds an invalid age key/)
     })
     withEnv(
       { XDG_CONFIG_HOME: xdg, SOPS_AGE_KEY: age.generateIdentity() },
       () => {
-        const error = t.throws(() => onesecret.load({ cwd }))
+        const error = t.throws(() => load({ cwd }))
         t.is(error.code, 'EKEY')
         t.regex(error.message, /skipped: .*keys\.txt holds an invalid age key/)
         t.is(error.message.match(/onesecret:/g).length, 1)
@@ -463,6 +471,7 @@ test.serial(
         constructor: 'c1',
         valueOf: 'v1'
       })
+      onesecret.env({ cwd, processEnv })
       t.true(Object.hasOwn(processEnv, 'constructor'))
     })
   }
@@ -585,14 +594,15 @@ test.serial(
         PUBLIC_unencrypted: 'visible',
         DATABASE_URL: 'postgres://fixture-production'
       })
+      onesecret.env({ cwd, env: 'production', processEnv })
       t.is(processEnv.TIMEOUT, '60000')
       t.is(processEnv.LOG_LEVEL, 'from-env')
       t.false(Object.hasOwn(processEnv, 'database'))
-      t.deepEqual(onesecret.load({ cwd, env: 'production' }), {
+      t.deepEqual(load({ cwd, env: 'production' }), {
         ...values,
         LOG_LEVEL: 'info'
       })
-      t.deepEqual(onesecret.names({ cwd, env: 'production' }), [
+      t.deepEqual(names({ cwd, env: 'production' }), [
         'API_TOKEN',
         'PORT',
         'PUBLIC_unencrypted',
@@ -612,6 +622,7 @@ test.serial('plain values never need the key', t => {
   }
   const values = onesecret.config({ cwd, env: 'production', processEnv })
   t.is(values.LOG_LEVEL, 'info')
+  onesecret.env({ cwd, env: 'production', processEnv })
   t.is(processEnv.LOG_LEVEL, 'info')
   t.is(values.S3_KEY, 'plain-production')
   t.is(values.PORT, 3000)
@@ -625,6 +636,7 @@ test.serial('ONESECRET_SKIP still loads the plain layers', t => {
     const processEnv = { ONESECRET_SKIP: '1' }
     const values = onesecret.config({ cwd, env: 'production', processEnv })
     t.is(values.LOG_LEVEL, 'info')
+    onesecret.env({ cwd, env: 'production', processEnv })
     t.is(processEnv.TIMEOUT, '60000')
     for (const name of ['DATABASE_URL', 'API_TOKEN', 'PORT']) {
       t.false(Object.hasOwn(values, name), name)
@@ -654,8 +666,10 @@ test('a plain layer alone is enough, in YAML or JSON', t => {
     PORT: 3000,
     FLAG: false
   })
+  t.deepEqual(processEnv, {})
+  onesecret.env({ cwd, env: 'test', processEnv })
   t.deepEqual(processEnv, { PORT: '3000', FLAG: 'false' })
-  t.deepEqual(onesecret.names({ cwd, env: 'test' }), [])
+  t.deepEqual(names({ cwd, env: 'test' }), [])
 })
 
 test('a plain layer cannot pollute prototypes and must be a mapping', t => {
@@ -678,7 +692,7 @@ test('a plain layer cannot pollute prototypes and must be a mapping', t => {
   t.is(error.code, 'EFORMAT')
   t.regex(error.message, /default\.json must be a mapping/)
   writePlain(cwd, 'default.json', '{')
-  t.is(t.throws(() => onesecret.load({ cwd })).code, 'EFORMAT')
+  t.is(t.throws(() => load({ cwd })).code, 'EFORMAT')
 })
 
 test('config returns the same types on every call', t => {
@@ -705,7 +719,7 @@ test('empty and comment-only plain files are empty layers', t => {
   }
   writePlain(cwd, 'production.yml', 'A: 1\n---\nB: 2\n')
   t.regex(
-    t.throws(() => onesecret.load({ cwd, env: 'production' })).message,
+    t.throws(() => load({ cwd, env: 'production' })).message,
     /single YAML document/
   )
 })
@@ -730,7 +744,7 @@ test('a plain mapping on top turns a secret into plain config', t => {
     { default: { API: 's' } },
     { 'production.yml': 'API:\n  a: 1\n' }
   )
-  t.deepEqual(onesecret.names({ cwd, env: 'production' }), [])
+  t.deepEqual(names({ cwd, env: 'production' }), [])
   t.deepEqual(onesecret.config({ cwd, env: 'production', processEnv: {} }), {
     API: { a: 1 }
   })
@@ -746,10 +760,11 @@ test('a nested secret that is missing is refused, and skip leaves it unset', t =
     t.is(error.code, 'EFORMAT')
     t.regex(error.message, /"db" in .*default\.enc\.yml has type mapping/)
     t.notRegex(error.message, /pass|"p"/)
-    t.deepEqual(onesecret.load({ cwd }).db, { host: 'h', pass: 'p' })
+    t.deepEqual(load({ cwd }).db, { host: 'h', pass: 'p' })
   })
   const skipping = { ONESECRET_SKIP: '1' }
   t.deepEqual(onesecret.config({ cwd, processEnv: skipping }), { PORT: 1 })
+  onesecret.env({ cwd, processEnv: skipping })
   t.deepEqual(skipping, { ONESECRET_SKIP: '1', PORT: '1' })
 })
 
@@ -845,6 +860,7 @@ test('null becomes an empty variable and only ONESECRET_SKIP=1 skips', t => {
   const processEnv = { ONESECRET_SKIP: 'true' }
   withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
     t.is(onesecret.config({ cwd, processEnv }).TOKEN, 'secret')
+    onesecret.env({ cwd, processEnv })
   })
   t.is(processEnv.EMPTY, '')
   t.is(
@@ -897,7 +913,7 @@ test('a plain mapping merged into an encrypted one keeps the name a secret, what
     { default: { DB: { pass: 's3cret' }, TOKEN: 't' } },
     { 'production.yml': 'DB:\n  host: h\n' }
   )
-  t.deepEqual(onesecret.names({ cwd, env: 'production' }), ['DB', 'TOKEN'])
+  t.deepEqual(names({ cwd, env: 'production' }), ['DB', 'TOKEN'])
   withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
     for (const processEnv of [{}, { TOKEN: 't' }]) {
       const error = t.throws(() =>
@@ -905,7 +921,7 @@ test('a plain mapping merged into an encrypted one keeps the name a secret, what
       )
       t.is(error.code, 'EFORMAT')
     }
-    t.deepEqual(onesecret.load({ cwd, env: 'production' }).DB, {
+    t.deepEqual(load({ cwd, env: 'production' }).DB, {
       pass: 's3cret',
       host: 'h'
     })
@@ -994,7 +1010,7 @@ test('a plain value is the same whether or not anything is decrypted', t => {
         b: 2
       })
     }
-    t.deepEqual(onesecret.load({ cwd, env: 'production' }).X, { b: 2 })
+    t.deepEqual(load({ cwd, env: 'production' }).X, { b: 2 })
   })
   t.deepEqual(
     onesecret.config({
@@ -1011,7 +1027,7 @@ test('a plain mapping replaces an encrypted list, so the name is plain', t => {
     { default: { L: ['x', 'y'], S: 's' } },
     { 'production.yml': 'L:\n  b: 2\n' }
   )
-  t.deepEqual(onesecret.names({ cwd, env: 'production' }), ['S'])
+  t.deepEqual(names({ cwd, env: 'production' }), ['S'])
   t.deepEqual(
     onesecret.config({ cwd, env: 'production', processEnv: { S: 's' } }).L,
     { b: 2 }
@@ -1178,7 +1194,7 @@ test('an empty or comment-only encrypted file is an empty layer for config', t =
   const cwd = encryptedProject({ default: { T: 's' } })
   for (const text of ['', '# soon\n']) {
     writePlain(cwd, 'staging.enc.yml', text)
-    t.deepEqual(onesecret.names({ cwd, env: 'staging' }), ['T'])
+    t.deepEqual(names({ cwd, env: 'staging' }), ['T'])
     t.deepEqual(
       onesecret.config({ cwd, env: 'staging', processEnv: { T: 's' } }),
       { T: 's' }
@@ -1229,10 +1245,312 @@ test('a case-variant file next to the exact one is refused where both can exist'
   writePlain(cwd, 'production.yml', 'A: 1\n')
   writePlain(cwd, 'Production.yml', 'A: 2\n')
   const names = fs.readdirSync(path.join(cwd, 'config'))
-  if (names.length === 1) { return t.pass('case-insensitive filesystem holds one file') }
+  if (names.length === 1) {
+    return t.pass('case-insensitive filesystem holds one file')
+  }
   const error = t.throws(() =>
     onesecret.config({ cwd, env: 'production', processEnv: {} })
   )
   t.is(error.code, 'EFORMAT')
   t.regex(error.message, /Production\.yml .* only in letter case/)
+})
+
+const countingDecrypts = run => {
+  const sops = require('../src/sops')
+  const decrypt = sops.decrypt
+  let calls = 0
+  sops.decrypt = (...args) => {
+    calls++
+    return decrypt(...args)
+  }
+  try {
+    run()
+  } finally {
+    sops.decrypt = decrypt
+  }
+  return calls
+}
+
+test.serial('config returns the values and never writes the environment', t => {
+  const cwd = encryptedProject(
+    { default: { TOKEN: 'secret' } },
+    { 'default.yml': 'PORT: 3000\n' }
+  )
+  const processEnv = { UNRELATED: 'kept' }
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    t.deepEqual(onesecret.config({ cwd, processEnv }), {
+      PORT: 3000,
+      TOKEN: 'secret'
+    })
+  })
+  t.deepEqual(processEnv, { UNRELATED: 'kept' })
+})
+
+test.serial('config and env decrypt each file once per process', t => {
+  const cwd = encryptedProject({
+    default: { TOKEN: 'secret' },
+    production: { OTHER: 'value' }
+  })
+  const processEnv = {}
+  const calls = countingDecrypts(() =>
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      onesecret.config({ cwd, env: 'production', processEnv })
+      onesecret.config({ cwd, env: 'production', processEnv })
+      onesecret.env({ cwd, env: 'production', processEnv: {} })
+      load({ cwd, env: 'production' })
+    })
+  )
+  t.is(calls, 2)
+})
+
+test.serial('a cached decrypt never hides a missing or wrong key', t => {
+  const cwd = encryptedProject({ default: { TOKEN: 'secret' } })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    t.is(onesecret.config({ cwd, processEnv: {} }).TOKEN, 'secret')
+  })
+  withEnv({ SOPS_AGE_KEY: undefined }, () => {
+    t.is(
+      t.throws(() => onesecret.config({ cwd, processEnv: {} })).code,
+      'EMISSING'
+    )
+    t.is(t.throws(() => load({ cwd })).code, 'ENOKEY')
+  })
+  withEnv({ SOPS_AGE_KEY: OTHER_KEY }, () => {
+    t.is(
+      t.throws(() => onesecret.config({ cwd, processEnv: {} })).code,
+      'EMISSING'
+    )
+  })
+})
+
+test.serial(
+  'a value returned from the cache cannot change the next call',
+  t => {
+    const cwd = encryptedProject({
+      default: { HOSTS: 'a', nested: { list: ['x'] } }
+    })
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      load({ cwd }).nested.list.push('mutated')
+      t.deepEqual(load({ cwd }).nested.list, ['x'])
+    })
+  }
+)
+
+test.serial(
+  'env fails like config and writes nothing when a secret cannot be found',
+  t => {
+    const cwd = encryptedProject(
+      { default: { TOKEN: 'secret' } },
+      { 'default.yml': 'PORT: 3000\n' }
+    )
+    const processEnv = {}
+    withEnv({ SOPS_AGE_KEY: undefined }, () => {
+      const error = t.throws(() => onesecret.env({ cwd, processEnv }))
+      t.is(error.code, 'EMISSING')
+      t.regex(error.message, /TOKEN/)
+    })
+    t.deepEqual(processEnv, {})
+  }
+)
+
+test.serial(
+  'an unencrypted integer beyond 2^53 does not break config or the cache',
+  t => {
+    const cwd = temporaryDir('bigint-unencrypted')
+    const sops = require('../src/sops')
+    const store = require('../src/store')
+    store.writeDocument(
+      path.join(cwd, 'config', 'default.enc.yml'),
+      sops.encrypt(
+        { TOKEN: 'secret', ID_unencrypted: 9007199254740993n },
+        {
+          recipients: [age.recipientOf(FIXTURE_KEY)],
+          unencryptedSuffix: '_unencrypted'
+        }
+      )
+    )
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      const values = onesecret.config({ cwd, processEnv: {} })
+      t.is(values.TOKEN, 'secret')
+      t.is(values.ID_unencrypted, 9007199254740993n)
+      t.is(
+        onesecret.config({ cwd, processEnv: {} }).ID_unencrypted,
+        9007199254740993n
+      )
+    })
+  }
+)
+
+test.serial('a rewritten file is decrypted again in the same process', t => {
+  const cwd = encryptedProject({ default: { TOKEN: 'first' } })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    t.is(onesecret.config({ cwd, processEnv: {} }).TOKEN, 'first')
+    const sops = require('../src/sops')
+    const store = require('../src/store')
+    store.writeDocument(
+      path.join(cwd, 'config', 'default.enc.yml'),
+      sops.encrypt(
+        { TOKEN: 'second' },
+        { recipients: [age.recipientOf(FIXTURE_KEY)] }
+      )
+    )
+    t.is(onesecret.config({ cwd, processEnv: {} }).TOKEN, 'second')
+  })
+})
+
+const accessorProject = () => {
+  const cwd = encryptedProject(
+    { default: { TOKEN: 'secret' } },
+    {
+      'default.yml': [
+        'ZERO: 0',
+        'OFF: false',
+        'EMPTY: ""',
+        'NOTHING: null',
+        'database:',
+        '  pool: 5',
+        '  ssl: false',
+        'hosts: [a, b]',
+        '"dotted.key": exact',
+        ''
+      ].join('\n')
+    }
+  )
+  return withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () =>
+    onesecret.config({ cwd, processEnv: {} })
+  )
+}
+
+test.serial(
+  'config().get reads dot paths, array indexes, and exact keys, with a fallback',
+  t => {
+    const config = accessorProject()
+    t.is(config.get('TOKEN'), 'secret')
+    t.is(config.get('database.pool'), 5)
+    t.is(config.get('hosts.1'), 'b')
+    t.is(config.get('dotted.key'), 'exact')
+    t.is(config.get('database.missing', 10), 10)
+    t.is(config.get('database.pool.deeper'), undefined)
+    t.is(config.get('ZERO', 99), 0)
+    t.is(config.get('NOTHING', 'fallback'), null)
+  }
+)
+
+test.serial(
+  'config().has counts 0, false, empty, and null as set, and ignores the prototype',
+  t => {
+    const config = accessorProject()
+    for (const path of [
+      'ZERO',
+      'OFF',
+      'EMPTY',
+      'NOTHING',
+      'database.ssl',
+      'hosts.0'
+    ]) {
+      t.true(config.has(path), path)
+    }
+    for (const path of [
+      'MISSING',
+      'database.missing',
+      'constructor',
+      'toString',
+      '__proto__',
+      'database.constructor',
+      'hosts.length',
+      'get',
+      'has',
+      'require',
+      'required'
+    ]) {
+      t.false(config.has(path), path)
+    }
+  }
+)
+
+test.serial(
+  'config().require returns falsy values and throws naming the path and env',
+  t => {
+    const config = accessorProject()
+    t.is(config.require('OFF'), false)
+    t.is(config.require('database.pool'), 5)
+    const error = t.throws(() => config.require('database.url'))
+    t.is(error.code, 'EMISSING')
+    t.regex(
+      error.message,
+      /"database\.url" is required but not set in the "development" config/
+    )
+  }
+)
+
+test.serial('config().required throws on destructuring a missing name', t => {
+  const config = accessorProject()
+  const { TOKEN, ZERO } = config.required
+  t.deepEqual([TOKEN, ZERO], ['secret', 0])
+  t.is(
+    t.throws(() => {
+      const { MISSING } = config.required
+      return MISSING
+    }).code,
+    'EMISSING'
+  )
+  t.notThrows(() => require('node:util').inspect(config.required))
+})
+
+test.serial('the accessors stay out of keys, spread, and JSON', t => {
+  const config = accessorProject()
+  for (const name of ['get', 'has', 'require', 'required']) {
+    t.false(Object.keys(config).includes(name), name)
+    t.false(Object.hasOwn({ ...config }, name), name)
+  }
+  t.false(JSON.stringify(config).includes('"get"'))
+})
+
+test.serial('a config name that collides with an accessor is refused', t => {
+  const cwd = temporaryDir('reserved-name')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(cwd, 'default.yml', 'get: 1\nrequired: 2\nPORT: 3\n')
+  const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+  t.is(error.code, 'EFORMAT')
+  t.regex(error.message, /"get", "required" cannot be a config name/)
+  const processEnv = {}
+  t.notThrows(() => onesecret.env({ cwd, processEnv }))
+  t.is(processEnv.PORT, '3')
+})
+
+test.serial(
+  'config().get takes array paths and refuses other path types',
+  t => {
+    const config = accessorProject()
+    t.is(config.get(['database', 'pool']), 5)
+    t.is(config.get(['dotted.key']), 'exact')
+    t.is(config.get(['hosts', 0]), 'a')
+    for (const path of [undefined, null, {}, () => {}]) {
+      t.is(t.throws(() => config.get(path)).code, 'EUSAGE')
+      t.is(t.throws(() => config.require(path)).code, 'EUSAGE')
+    }
+    t.is(
+      t.throws(() => {
+        const { get } = config.required
+        return get
+      }).code,
+      'EMISSING'
+    )
+  }
+)
+
+test.serial('an unreadable encrypted file fails with EFORMAT naming it', t => {
+  if (process.getuid?.() === 0) return t.pass()
+  const cwd = encryptedProject({ default: { TOKEN: 'secret' } })
+  const file = path.join(cwd, 'config', 'default.enc.yml')
+  fs.chmodSync(file, 0o000)
+  try {
+    withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+      const error = t.throws(() => onesecret.config({ cwd, processEnv: {} }))
+      t.is(error.code, 'EFORMAT')
+      t.regex(error.message, /cannot read .*default\.enc\.yml: EACCES/)
+    })
+  } finally {
+    fs.chmodSync(file, 0o600)
+  }
 })

@@ -90,24 +90,6 @@ const fakeBinary = (name, script) => {
   return { dir, file }
 }
 
-const recordingBinary = (
-  name,
-  { exitCode = 0, stdout = '', stderr = '' } = {}
-) => {
-  const record = path.join(temporaryDir('record'), 'call.json')
-  const { dir, file } = fakeBinary(
-    name,
-    `const input = require('fs').readFileSync(0, 'utf8')
-require('fs').writeFileSync(${JSON.stringify(
-      record
-    )}, JSON.stringify({ args: process.argv.slice(2), input, env: process.env }))
-process.stdout.write(${JSON.stringify(stdout)})
-process.stderr.write(${JSON.stringify(stderr)})
-process.exit(${exitCode})`
-  )
-  return { dir, file, call: () => JSON.parse(fs.readFileSync(record, 'utf8')) }
-}
-
 const cli = (args, { cwd, env = {}, input } = {}) => {
   const result = spawnSync(process.execPath, [BIN, ...args], {
     cwd,
@@ -117,6 +99,7 @@ const cli = (args, { cwd, env = {}, input } = {}) => {
   })
   return {
     code: result.status,
+    rawStdout: result.stdout,
     stdout: result.stdout.trim(),
     stderr: result.stderr.trim()
   }
@@ -140,7 +123,6 @@ module.exports = {
   fakeBinary,
   hasBinary,
   project,
-  recordingBinary,
   temporaryDir,
   withEnv
 }

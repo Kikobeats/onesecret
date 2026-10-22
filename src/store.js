@@ -101,9 +101,12 @@ const parseErrorOf = error => {
   return error.code || error.message
 }
 
-const readDocument = file => {
+const readDocument = file => readDocumentText(file).document
+
+const readDocumentText = file => {
   try {
-    return yaml.parse(fs.readFileSync(file, 'utf8'))
+    const text = fs.readFileSync(file, 'utf8')
+    return { text, document: yaml.parse(text) }
   } catch (error) {
     throw new OnesecretError(
       `cannot read ${file}: ${parseErrorOf(error)}`,
@@ -250,6 +253,7 @@ module.exports = {
   layerFileOrNew,
   layersFor,
   readDocument,
+  readDocumentText,
   readPlain,
   stringify,
   writeDocument,
