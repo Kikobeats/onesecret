@@ -96,6 +96,7 @@
   height: 0.62em;
   flex: none;
   border-radius: 0.14em;
+  translate: 0 0.105em;
   box-shadow: 0 0 0 1px var(--cover-border), 0 18px 40px -18px color-mix(in srgb, var(--cover-accent) 60%, transparent);
 }
 
