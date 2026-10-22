@@ -13,7 +13,6 @@ Commit your credentials encrypted next to your code as SOPS files, and keep a si
 
 - [Full documentation (Markdown)](https://kikobeats.github.io/onesecret/README.md)
 - [Documentation site](https://kikobeats.github.io/onesecret/)
-- [Migration guide for coding agents (Markdown)](https://kikobeats.github.io/onesecret/migrate.md)
 
 ## Source
 

@@ -129,8 +129,6 @@ Give your coding agent this prompt:
 Migrate this project to onesecret: run npx onesecret init (keep the printed key out of the repo), move plain settings to config/<env>.yml, encrypt secrets with npx onesecret set --env <env> NAME=value, replace dotenv with require('onesecret').env(), and verify every value matches the old .env without printing it.
 ```
 
-For a larger project, [the migration guide](migrate.md) is the detailed checklist: platform secrets, tests, CI, deploys, and cleanup.
-
 ## Deploy
 
 Deploys push only the secrets, with their merged values. Plain settings ship inside the image with the `config/` directory.
