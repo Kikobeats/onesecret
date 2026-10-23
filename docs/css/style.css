@@ -489,6 +489,83 @@ main > .content {
   color: var(--accent-color);
 }
 
+.markdown-section summary[data-logo] strong {
+  align-items: center;
+  display: inline-flex;
+  gap: 10px;
+}
+
+.markdown-section summary[data-logo] strong::before {
+  background-color: var(--muted-color);
+  content: '';
+  flex: none;
+  height: 18px;
+  mask: var(--logo) center / contain no-repeat;
+  transition: background-color 0.15s ease-out;
+  width: 18px;
+}
+
+.markdown-section details[open] > summary[data-logo] strong::before {
+  background-color: var(--primary-color);
+}
+
+.markdown-section summary[data-logo]:hover strong::before,
+.markdown-section details[open] > summary[data-logo]:hover strong::before {
+  background-color: var(--accent-color);
+}
+
+.markdown-section summary[data-logo='recipes'] {
+  --logo: url('providers/recipes.svg');
+}
+
+.markdown-section summary[data-logo='kubernetes'] {
+  --logo: url('providers/kubernetes.svg');
+}
+
+.markdown-section summary[data-logo='flyio'] {
+  --logo: url('providers/flyio.svg');
+}
+
+.markdown-section summary[data-logo='vercel'] {
+  --logo: url('providers/vercel.svg');
+}
+
+.markdown-section summary[data-logo='netlify'] {
+  --logo: url('providers/netlify.svg');
+}
+
+.markdown-section summary[data-logo='cloudflare-workers'] {
+  --logo: url('providers/cloudflare-workers.svg');
+}
+
+.markdown-section summary[data-logo='railway'] {
+  --logo: url('providers/railway.svg');
+}
+
+.markdown-section summary[data-logo='render'] {
+  --logo: url('providers/render.svg');
+}
+
+.markdown-section summary[data-logo='aws'] {
+  --logo: url('providers/aws.svg');
+}
+
+.markdown-section summary[data-logo='google-cloud-run'] {
+  --logo: url('providers/google-cloud-run.svg');
+}
+
+.markdown-section summary[data-logo='docker'] {
+  --logo: url('providers/docker.svg');
+}
+
+.markdown-section summary[data-logo='github-actions'] {
+  --logo: url('providers/github-actions.svg');
+}
+
+.markdown-section summary[data-logo='anywhere'] {
+  --logo: url('providers/anywhere.svg');
+}
+
 .markdown-section hr {
   border: 0;
   border-top: 1px solid var(--border-color);
