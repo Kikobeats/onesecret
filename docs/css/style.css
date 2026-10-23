@@ -509,7 +509,8 @@ main > .content {
   background-color: var(--primary-color);
 }
 
-.markdown-section summary[data-logo]:hover strong::before {
+.markdown-section summary[data-logo]:hover strong::before,
+.markdown-section details[open] > summary[data-logo]:hover strong::before {
   background-color: var(--accent-color);
 }
 

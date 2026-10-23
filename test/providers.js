@@ -8,6 +8,9 @@ const { default: test } = require('ava')
 const ROOT = join(__dirname, '..')
 const README = readFileSync(join(ROOT, 'README.md'), 'utf8')
 const STYLE = readFileSync(join(ROOT, 'docs/css/style.css'), 'utf8')
+const BUILT = readFileSync(join(ROOT, 'static/style.min.css'), 'utf8')
+
+const compact = text => text.replace(/\s+/g, '')
 
 const DEPLOY_SECTION = README.slice(
   README.indexOf('## Deploy'),
@@ -29,6 +32,8 @@ test('every deploy recipe has a logo', t => {
 })
 
 test('every logo has its icon file and its style rule', t => {
+  t.true(compact(STYLE).includes('mask:var(--logo)'))
+  t.true(compact(BUILT).includes('mask:var(--logo)'))
   for (const { logo } of summaries.filter(({ logo }) => logo)) {
     t.true(
       existsSync(join(ROOT, `static/providers/${logo}.svg`)),
@@ -40,5 +45,22 @@ test('every logo has its icon file and its style rule', t => {
       ),
       `no style rule for ${logo}`
     )
+    t.true(
+      compact(BUILT).includes(`providers/${logo}.svg`),
+      `built stylesheet has no icon for ${logo}`
+    )
   }
+})
+
+test('an open recipe icon follows hover and keyboard focus', t => {
+  t.true(
+    STYLE.includes(
+      '.markdown-section details[open] > summary[data-logo]:hover strong::before'
+    )
+  )
+  t.true(
+    compact(BUILT).includes(
+      'details[open]>summary[data-logo]:focus-visiblestrong:before'
+    )
+  )
 })
