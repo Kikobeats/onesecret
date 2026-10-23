@@ -107,12 +107,11 @@
   font-size: clamp(56px, 6.4vw, 92px);
   line-height: 1;
   letter-spacing: -0.045em;
-  padding-bottom: 0.2em;
   text-shadow: 0 0.025em 0.02em var(--cover-shadow), 0 0.06em 0.16em var(--cover-shadow);
 }
 
 .cover__logo {
-  width: 1.6em;
+  width: 1em;
   height: auto;
   flex: none;
   translate: 0 0.08em;
@@ -298,7 +297,7 @@
     width: 100%;
     padding: 56px 16px 0;
   }
-  .cover__wordmark { font-size: min(48px, 12vw); }
+  .cover__wordmark { font-size: min(52px, 13vw); }
   .cover__tagline { font-size: 26px; margin-top: 16px; }
   .cover__install { margin-top: 26px; }
   .cover__links { margin-top: 24px; }
