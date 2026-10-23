@@ -180,7 +180,7 @@ Ship the `config/` folder with your app. It holds your plain settings and the li
 Pick your platform below. Most recipes use [jq](https://jqlang.org) to handle the values.
 
 <details>
-<summary><strong>How the recipes work</strong></summary>
+<summary data-logo="recipes"><strong>How the recipes work</strong></summary>
 
 Deploys push only the secrets, with their merged values. Plain settings ship inside the image with the `config/` directory.
 
@@ -199,7 +199,7 @@ Each recipe below decrypts once into a `secrets` variable and pushes only when t
 </details>
 
 <details>
-<summary><strong>Kubernetes</strong></summary>
+<summary data-logo="kubernetes"><strong>Kubernetes</strong></summary>
 
 Apply the secrets as a Secret before `helm upgrade`, then pass their checksum to the chart so pods roll when a value changes:
 
@@ -238,7 +238,7 @@ The checksum annotation matters too: when only a secret value changes, nothing e
 </details>
 
 <details>
-<summary><strong>Fly.io</strong></summary>
+<summary data-logo="flyio"><strong>Fly.io</strong></summary>
 
 ```bash
 $ secrets=$(npx onesecret dotenv --env production --json) &&
@@ -256,7 +256,7 @@ $ fly deploy --app my-app
 </details>
 
 <details>
-<summary><strong>Vercel</strong></summary>
+<summary data-logo="vercel"><strong>Vercel</strong></summary>
 
 ```bash
 $ secrets=$(npx onesecret dotenv --env production --json)
@@ -274,7 +274,7 @@ $ vercel deploy --prod
 </details>
 
 <details>
-<summary><strong>Netlify</strong></summary>
+<summary data-logo="netlify"><strong>Netlify</strong></summary>
 
 ```bash
 $ secrets=$(npx onesecret dotenv --env production --json)
@@ -292,7 +292,7 @@ $ netlify deploy --prod
 </details>
 
 <details>
-<summary><strong>Cloudflare Workers</strong></summary>
+<summary data-logo="cloudflare-workers"><strong>Cloudflare Workers</strong></summary>
 
 ```bash
 $ secrets=$(npx onesecret dotenv --env production --json) &&
@@ -320,7 +320,7 @@ const config = require('onesecret').config({ env: 'production', cwd: '/bundle' }
 </details>
 
 <details>
-<summary><strong>Railway</strong></summary>
+<summary data-logo="railway"><strong>Railway</strong></summary>
 
 ```bash
 $ secrets=$(npx onesecret dotenv --env production --json)
@@ -339,7 +339,7 @@ $ railway redeploy --service api --environment production --yes
 </details>
 
 <details>
-<summary><strong>Render</strong></summary>
+<summary data-logo="render"><strong>Render</strong></summary>
 
 The Render CLI cannot set variables on an existing service, so the loop calls the API, one key at a time:
 
@@ -359,7 +359,7 @@ $ render deploys create "$RENDER_SERVICE_ID" --wait --confirm
 </details>
 
 <details>
-<summary><strong>AWS</strong></summary>
+<summary data-logo="aws"><strong>AWS</strong></summary>
 
 On ECS, keep every secret of an environment in one Secrets Manager secret as JSON, and reference each key from the task definition:
 
@@ -384,7 +384,7 @@ $ aws ecs update-service --cluster prod --service my-app --force-new-deployment
 </details>
 
 <details>
-<summary><strong>Google Cloud Run</strong></summary>
+<summary data-logo="google-cloud-run"><strong>Google Cloud Run</strong></summary>
 
 Keep each secret in Secret Manager and mount them all as variables. Secret names are shared by the whole Google Cloud project, so prefix them with the app and the environment:
 
@@ -405,7 +405,7 @@ $ gcloud run deploy my-app --source . --set-secrets="$(npx onesecret ls --env pr
 </details>
 
 <details>
-<summary><strong>Docker</strong></summary>
+<summary data-logo="docker"><strong>Docker</strong></summary>
 
 ```bash
 $ npx onesecret exec --env production -- docker run $(npx onesecret ls --env production | sed 's/^/-e /') my-image
@@ -419,7 +419,7 @@ $ npx onesecret exec --env production -- docker run $(npx onesecret ls --env pro
 </details>
 
 <details>
-<summary><strong>GitHub Actions</strong></summary>
+<summary data-logo="github-actions"><strong>GitHub Actions</strong></summary>
 
 A job that deploys needs a single secret: the age key. onesecret decrypts the rest in the job.
 
@@ -446,7 +446,7 @@ Do not import `onesecret dotenv` with `gh secret set --env-file`: gh parses it w
 </details>
 
 <details>
-<summary><strong>Anywhere else</strong></summary>
+<summary data-logo="anywhere"><strong>Anywhere else</strong></summary>
 
 ```bash
 $ npx onesecret dotenv --env production > .env.production
