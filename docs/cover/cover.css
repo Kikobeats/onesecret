@@ -6,6 +6,7 @@
   --cover-accent: #3ddc97;
   --cover-accent-ink: #06150e;
   --cover-glow: rgb(58 232 168 / 0.45);
+  --cover-shadow: rgb(0 0 0 / 0.6);
   --cover-corner: rgb(31 191 128 / 0.22);
   --cover-font-display: "Space Grotesk", system-ui, sans-serif;
   --cover-font-body: "IBM Plex Sans", system-ui, sans-serif;
@@ -22,6 +23,7 @@
     --cover-accent: #0a7448;
     --cover-accent-ink: #ffffff;
     --cover-glow: rgb(31 191 128 / 0.28);
+    --cover-shadow: rgb(22 21 15 / 0.16);
     --cover-corner: rgb(31 191 128 / 0.1);
     color-scheme: light;
   }
@@ -35,6 +37,7 @@
   --cover-accent: #0a7448;
   --cover-accent-ink: #ffffff;
   --cover-glow: rgb(31 191 128 / 0.28);
+  --cover-shadow: rgb(22 21 15 / 0.16);
   --cover-corner: rgb(31 191 128 / 0.1);
   color-scheme: light;
 }
@@ -104,6 +107,7 @@
   font-size: clamp(56px, 6.4vw, 92px);
   line-height: 1;
   letter-spacing: -0.045em;
+  text-shadow: 0 0.025em 0.02em var(--cover-shadow), 0 0.06em 0.16em var(--cover-shadow);
 }
 
 .cover__logo {
@@ -111,7 +115,7 @@
   height: auto;
   flex: none;
   translate: 0 0.08em;
-  filter: drop-shadow(0 0 0.2em var(--cover-glow));
+  filter: drop-shadow(0.03em 0.05em 0.04em var(--cover-shadow)) drop-shadow(-0.08em -0.1em 0.3em var(--cover-glow));
 }
 
 .cover__scrambled { position: relative; }

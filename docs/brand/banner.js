@@ -14,6 +14,7 @@ export const BANNER = {
   command: { prompt: '$ ', text: 'npm install onesecret', size: 26 },
   keyToXHeight: 1.85,
   gapToKeyWidth: 0.21,
+  glowOffset: 10,
   lockupCenter: 196,
   taglineBaseline: 368,
   chipTop: 426,
@@ -47,14 +48,19 @@ const lockup = ({ fonts, textPath }) => {
     4
   )})`
   return (
-    `<g filter="url(#glow)" opacity="0.55"><path fill="${
+    `<g filter="url(#glow)" opacity="0.55" transform="${translate(
+      -BANNER.glowOffset,
+      -BANNER.glowOffset
+    )}"><path fill="${
       GRADIENT.top
     }" transform="${keyTransform}" d="${keyPath()}"/></g>` +
+    '<g filter="url(#lift)">' +
     `<path fill="url(#k)" transform="${keyTransform}" d="${keyPath()}"/>` +
     `<path fill="${BANNER.text}" transform="${translate(
       left + keyWidth + gap,
       baseline
-    )}" d="${word.d}"/>`
+    )}" d="${word.d}"/>` +
+    '</g>'
   )
 }
 
@@ -99,6 +105,7 @@ export const bannerSvg = context =>
       `<stop offset="${offset}" stop-color="${GRADIENT.bottom}" stop-opacity="${opacity}"/>`
   ).join('')}</radialGradient>` +
   '<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"/></filter>' +
+  '<filter id="lift" x="-10%" y="-20%" width="120%" height="150%"><feDropShadow dx="2" dy="5" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/></filter>' +
   '</defs>' +
   `<rect width="${BANNER.width}" height="${BANNER.height}" fill="${BANNER.background}"/>` +
   `<rect width="${BANNER.width}" height="${BANNER.height}" fill="url(#corner)"/>` +
