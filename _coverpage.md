@@ -10,7 +10,7 @@
     <canvas class="cover__scene" aria-hidden="true"></canvas>
     <div class="cover__text" data-cover-text>
       <h1 class="cover__wordmark" id="cover-title">
-        <img class="cover__logo" src="static/logo.svg" alt="" width="64" height="64">
+        <img class="cover__logo" src="static/mark.svg" alt="" width="85" height="48">
         onesecret
       </h1>
       <p class="cover__tagline">Keep just one secret to decrypt the&nbsp;rest.</p>

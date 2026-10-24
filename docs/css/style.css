@@ -18,6 +18,7 @@
   --token-comment: #8a877d;
   --token-punctuation: #5e5c53;
   --corner-color: var(--accent-color);
+  --mark-glow: none;
   --plugin-search-kbd-bg: var(--bg-color);
   --plugin-search-kbd-border: 1px solid var(--border-color);
   --plugin-search-kbd-color: var(--subtle-color);
@@ -49,6 +50,7 @@
     --token-comment: #9e9b91;
     --token-punctuation: #a8a59b;
     --corner-color: #2a9d6c;
+    --mark-glow: drop-shadow(0 0 6px rgb(58 232 168 / 0.35));
 
     color-scheme: dark;
   }
@@ -225,10 +227,11 @@ main {
 }
 
 .app-name-link::before {
-  background: url('logo.svg') center / contain no-repeat;
+  background: url('mark.svg') center / contain no-repeat;
   content: '';
-  height: 30px;
-  width: 30px;
+  filter: var(--mark-glow);
+  height: 20px;
+  width: 36px;
 }
 
 .sidebar-nav ul {
@@ -774,7 +777,7 @@ body:not(.sticky) .sidebar {
 
   .sidebar-toggle::after {
     align-items: center;
-    background: url('logo.svg') left center / 26px no-repeat;
+    background: url('mark.svg') left center / 30px no-repeat;
     color: var(--primary-color);
     content: 'onesecret';
     display: flex;
@@ -784,7 +787,7 @@ body:not(.sticky) .sidebar {
     height: 56px;
     left: 64px;
     letter-spacing: -0.02em;
-    padding-left: 36px;
+    padding-left: 40px;
     pointer-events: none;
     position: absolute;
     top: 0;

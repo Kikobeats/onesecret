@@ -5,6 +5,9 @@
   --cover-border: #2e332f;
   --cover-accent: #3ddc97;
   --cover-accent-ink: #06150e;
+  --cover-glow: rgb(58 232 168 / 0.45);
+  --cover-shadow: rgb(0 0 0 / 0.6);
+  --cover-corner: rgb(31 191 128 / 0.22);
   --cover-font-display: "Space Grotesk", system-ui, sans-serif;
   --cover-font-body: "IBM Plex Sans", system-ui, sans-serif;
   --cover-font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -19,6 +22,9 @@
     --cover-border: #e3e0d6;
     --cover-accent: #0a7448;
     --cover-accent-ink: #ffffff;
+    --cover-glow: rgb(31 191 128 / 0.28);
+    --cover-shadow: rgb(22 21 15 / 0.16);
+    --cover-corner: rgb(31 191 128 / 0.1);
     color-scheme: light;
   }
 }
@@ -30,6 +36,9 @@
   --cover-border: #e3e0d6;
   --cover-accent: #0a7448;
   --cover-accent-ink: #ffffff;
+  --cover-glow: rgb(31 191 128 / 0.28);
+  --cover-shadow: rgb(22 21 15 / 0.16);
+  --cover-corner: rgb(31 191 128 / 0.1);
   color-scheme: light;
 }
 
@@ -42,6 +51,15 @@
   display: flex;
   align-items: center;
   font-family: var(--cover-font-body);
+}
+
+.cover-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(70vmax 70vmax at 0 0, var(--cover-corner), color-mix(in srgb, var(--cover-corner) 40%, transparent) 30%, transparent 62%);
 }
 
 .cover__still,
@@ -82,22 +100,22 @@
 .cover__wordmark {
   display: flex;
   align-items: center;
-  gap: 0.22em;
+  gap: 0.28em;
   margin: 0;
   font-family: var(--cover-font-display);
-  font-weight: 600;
-  font-size: clamp(56px, 7.4vw, 104px);
+  font-weight: 700;
+  font-size: clamp(56px, 6.4vw, 92px);
   line-height: 1;
   letter-spacing: -0.045em;
+  text-shadow: 0 0.025em 0.02em var(--cover-shadow), 0 0.06em 0.16em var(--cover-shadow);
 }
 
 .cover__logo {
-  width: 0.62em;
-  height: 0.62em;
+  width: 1em;
+  height: auto;
   flex: none;
-  border-radius: 0.14em;
-  translate: 0 0.105em;
-  box-shadow: 0 0 0 1px var(--cover-border), 0 18px 40px -18px color-mix(in srgb, var(--cover-accent) 60%, transparent);
+  translate: 0 0.08em;
+  filter: drop-shadow(0.03em 0.05em 0.04em var(--cover-shadow)) drop-shadow(-0.08em -0.1em 0.3em var(--cover-glow));
 }
 
 .cover__scrambled { position: relative; }
@@ -279,7 +297,7 @@
     width: 100%;
     padding: 56px 16px 0;
   }
-  .cover__wordmark { font-size: 52px; }
+  .cover__wordmark { font-size: min(52px, 13vw); }
   .cover__tagline { font-size: 26px; margin-top: 16px; }
   .cover__install { margin-top: 26px; }
   .cover__links { margin-top: 24px; }
