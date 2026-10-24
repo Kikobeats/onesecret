@@ -68,7 +68,7 @@ test('the social image URLs carry the hash of the committed banner', t => {
     .update(read('static/banner.jpg'))
     .digest('hex')
     .slice(0, 8)
-  const expected = `https://kikobeats.github.io/onesecret/static/banner.jpg?v=${version}`
+  const expected = `https://onesecret.js.org/static/banner.jpg?v=${version}`
   t.is(metaContent(html, 'property', 'og:image'), expected)
   t.is(metaContent(html, 'name', 'twitter:image'), expected)
 })
