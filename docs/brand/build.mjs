@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import opentype from 'opentype.js'
 import sharp from 'sharp'
 import { BANNER, bannerSvg } from './banner.js'
@@ -52,7 +53,7 @@ write('mark.svg', markSvg())
 write('logo.svg', icon)
 
 for (const [name, size] of Object.entries(ICON_SIZES)) {
-  await sharp(Buffer.from(icon), { density: (72 * size) / 64 }).resize(size, size).png().toFile(new URL(name, STATIC).pathname)
+  await sharp(Buffer.from(icon), { density: (72 * size) / 64 }).resize(size, size).png().toFile(fileURLToPath(new URL(name, STATIC)))
   console.log(`static/${name}`)
 }
 
@@ -81,7 +82,7 @@ const { data, info } = await sharp(Buffer.from(banner), { density: 72 * BANNER.s
   .toBuffer({ resolveWithObject: true })
 await sharp(dither(data), { raw: info })
   .jpeg({ quality: 95, chromaSubsampling: '4:4:4' })
-  .toFile(new URL('banner.jpg', STATIC).pathname)
+  .toFile(fileURLToPath(new URL('banner.jpg', STATIC)))
 console.log('static/banner.jpg')
 
 const version = createHash('sha256').update(readFileSync(new URL('banner.jpg', STATIC))).digest('hex').slice(0, 8)
