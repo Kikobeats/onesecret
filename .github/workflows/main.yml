@@ -39,7 +39,8 @@ jobs:
           pnpm contributors
       - name: Push changes
         run: |
-          git push origin ${{ github.head_ref }}
+          git pull --rebase origin master
+          git push origin HEAD:master
 
   release:
     if: |
@@ -52,6 +53,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -86,6 +88,7 @@ jobs:
         uses: coverallsapp/github-action@main
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-error: false
       - name: Release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
