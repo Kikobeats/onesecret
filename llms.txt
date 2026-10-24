@@ -11,8 +11,8 @@ Commit your credentials encrypted next to your code as SOPS files, and keep a si
 
 ## Docs
 
-- [Full documentation (Markdown)](https://kikobeats.github.io/onesecret/README.md)
-- [Documentation site](https://kikobeats.github.io/onesecret/)
+- [Full documentation (Markdown)](https://onesecret.js.org/README.md)
+- [Documentation site](https://onesecret.js.org/)
 
 ## Source
 
