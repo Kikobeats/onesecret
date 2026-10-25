@@ -1,0 +1,50 @@
+name: pull_request
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  SKIP_INSTALL_SIMPLE_GIT_HOOKS: true
+
+jobs:
+  test:
+    if: github.ref != 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v6
+        with:
+          version: latest
+      - name: Install sops and age
+        env:
+          SOPS_VERSION: 3.13.3
+          SOPS_SHA256: e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
+        run: |
+          curl -fsSL -o sops "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64"
+          echo "${SOPS_SHA256}  sops" | sha256sum --check
+          sudo install -m 0755 sops /usr/local/bin/sops
+          sudo apt-get update && sudo apt-get install -y age
+          sops --version && age --version
+      - name: Install
+        run: pnpm install --dangerously-allow-all-builds
+      - name: Test
+        run: pnpm test
+      - name: Report
+        run: npx c8 report --reporter=text-lcov > coverage/lcov.info
+      - name: Coverage
+        uses: coverallsapp/github-action@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
