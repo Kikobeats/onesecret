@@ -31,14 +31,8 @@ const readOptions = flags => ({
 
 const writeOptions = flags => ({ dir: flags.dir, cwd: flags.cwd })
 
-const readLayersFor = (command, flags) => {
-  const layered = secrets.readLayers(readOptions(flags))
-  if (!flags.env) return layered
-  return secrets.requireEnvLayer(
-    layered,
-    `${command} found no "${layered.env}" layer in ${layered.dir}, check the --env name`
-  )
-}
+const readLayersFor = (command, flags) =>
+  secrets.readEnvLayers(readOptions(flags), command)
 
 const writeLayerOf = flags => flags.env || 'default'
 
