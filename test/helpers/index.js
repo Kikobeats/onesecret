@@ -36,6 +36,7 @@ for (const name of [
 ]) {
   delete process.env[name]
 }
+forgetAgeKey()
 
 const temporaryDir = prefix => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `onesecret-${prefix}-`))
