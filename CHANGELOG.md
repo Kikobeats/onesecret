@@ -1,3 +1,9 @@
+## [0.1.2](https://github.com/kikobeats/onesecret/compare/v0.1.1...v0.1.2) (2026-10-26)
+
+### Features
+
+* env values take the type of the setting in the file ([#22](https://github.com/kikobeats/onesecret/issues/22)) ([8c9bbe5](https://github.com/kikobeats/onesecret/commit/8c9bbe5bf2bc41ae6d3474855ec75ce39e2e5d4f))
+
 ## [0.1.1](https://github.com/kikobeats/onesecret/compare/v0.1.0...v0.1.1) (2026-10-26)
 
 ### Features
