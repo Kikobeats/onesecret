@@ -766,7 +766,41 @@ test('config returns the same types on every call', t => {
   t.deepEqual(onesecret.config({ cwd, processEnv }), first)
   t.deepEqual(first, { FLAG: false, TIMEOUT: 60000, EMPTY: null })
   processEnv.TIMEOUT = '1000'
-  t.is(onesecret.config({ cwd, processEnv }).TIMEOUT, '1000')
+  t.is(onesecret.config({ cwd, processEnv }).TIMEOUT, 1000)
+})
+
+test('a setting from the environment comes back with the type in its file', t => {
+  const cwd = temporaryDir('typed-settings')
+  fs.mkdirSync(path.join(cwd, 'config'))
+  writePlain(
+    cwd,
+    'default.yml',
+    'PORT: 3000\nRATIO: 0.5\nDEBUG: false\nEMPTY: null\nPLAN_ID: abc\n'
+  )
+  const processEnv = {
+    PORT: '8080',
+    RATIO: '1.5',
+    DEBUG: 'true',
+    EMPTY: '',
+    PLAN_ID: '0123'
+  }
+  t.deepEqual(onesecret.config({ cwd, processEnv }), {
+    PORT: 8080,
+    RATIO: 1.5,
+    DEBUG: true,
+    EMPTY: null,
+    PLAN_ID: '0123'
+  })
+  const odd = { PORT: '0x10', RATIO: '1e3', DEBUG: 'yes', EMPTY: 'x' }
+  t.deepEqual(onesecret.config({ cwd, processEnv: odd }), {
+    PORT: '0x10',
+    RATIO: '1e3',
+    DEBUG: 'yes',
+    EMPTY: 'x',
+    PLAN_ID: 'abc'
+  })
+  onesecret.env({ cwd, processEnv })
+  t.is(processEnv.PORT, '8080')
 })
 
 test('empty and comment-only plain files are empty layers', t => {
