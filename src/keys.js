@@ -14,6 +14,28 @@ const AGE_KEY_VARIABLES = [
   'SOPS_AGE_KEY_CMD'
 ]
 
+const HELD_KEY = Symbol.for('onesecret.ageKey')
+const takenAgeKey = (globalThis[HELD_KEY] ??= {})
+
+const takeAgeKey = () => {
+  for (const name of AGE_KEY_VARIABLES) {
+    if (process.env[name] === undefined) continue
+    takenAgeKey[name] = process.env[name]
+    delete process.env[name]
+  }
+}
+
+const ageVariable = name => {
+  takeAgeKey()
+  return takenAgeKey[name]
+}
+
+const forgetAgeKey = () => {
+  for (const name of AGE_KEY_VARIABLES) delete takenAgeKey[name]
+}
+
+takeAgeKey()
+
 const sopsKeysFile = () => {
   if (process.env.XDG_CONFIG_HOME) {
     return path.join(process.env.XDG_CONFIG_HOME, KEYS_FILE)
@@ -50,22 +72,17 @@ const parseSource = (label, text) => {
   }
 }
 
-const localSources = () => [
-  ...(process.env.SOPS_AGE_KEY
-    ? [['SOPS_AGE_KEY', () => process.env.SOPS_AGE_KEY]]
-    : []),
-  ...(process.env.SOPS_AGE_KEY_FILE
-    ? [
-        [
-          process.env.SOPS_AGE_KEY_FILE,
-          () => readKeyFile(process.env.SOPS_AGE_KEY_FILE)
-        ]
-      ]
-    : []),
-  ...defaultKeyFiles()
-    .filter(file => fs.existsSync(file))
-    .map(file => [file, () => readKeyFile(file)])
-]
+const localSources = () => {
+  const key = ageVariable('SOPS_AGE_KEY')
+  const keyFile = ageVariable('SOPS_AGE_KEY_FILE')
+  return [
+    ...(key ? [['SOPS_AGE_KEY', () => key]] : []),
+    ...(keyFile ? [[keyFile, () => readKeyFile(keyFile)]] : []),
+    ...defaultKeyFiles()
+      .filter(file => fs.existsSync(file))
+      .map(file => [file, () => readKeyFile(file)])
+  ]
+}
 
 const localIdentities = () => {
   const identities = []
@@ -127,7 +144,7 @@ const readKeyCommand = command => {
   return identities
 }
 
-const keyCommandOf = keyCommand => process.env.SOPS_AGE_KEY_CMD || keyCommand
+const keyCommandOf = keyCommand => ageVariable('SOPS_AGE_KEY_CMD') || keyCommand
 
 const withIdentities = (keyCommand, use, { allowKeyCommand = true } = {}) => {
   const { identities, invalid } = localIdentities()
@@ -152,18 +169,14 @@ const withIdentities = (keyCommand, use, { allowKeyCommand = true } = {}) => {
   return use(runKeyCommand(command))
 }
 
-const withoutAgeKey = env =>
-  Object.fromEntries(
-    Object.entries(env).filter(([name]) => !AGE_KEY_VARIABLES.includes(name))
-  )
-
 const EXPORTED_KEY = /AGE-SECRET-KEY-1[0-9A-Z]+/g
 
 const exportedKeyText = () => {
-  const texts = [process.env.SOPS_AGE_KEY || '']
-  if (process.env.SOPS_AGE_KEY_FILE) {
+  const texts = [ageVariable('SOPS_AGE_KEY') || '']
+  const keyFile = ageVariable('SOPS_AGE_KEY_FILE')
+  if (keyFile) {
     try {
-      texts.push(fs.readFileSync(process.env.SOPS_AGE_KEY_FILE, 'utf8'))
+      texts.push(fs.readFileSync(keyFile, 'utf8'))
     } catch {}
   }
   return texts
@@ -190,8 +203,9 @@ const exportedRecipients = () => [
 ]
 
 module.exports = {
+  AGE_KEY_VARIABLES,
   exportedRecipients,
+  forgetAgeKey,
   sopsKeysFile,
-  withIdentities,
-  withoutAgeKey
+  withIdentities
 }

@@ -4,6 +4,7 @@ const { execFileSync, spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
+const { AGE_KEY_VARIABLES, forgetAgeKey } = require('../../src/keys')
 
 const FIXTURES = path.join(__dirname, '..', 'fixtures')
 const BIN = path.join(__dirname, '..', '..', 'bin', 'index.js')
@@ -60,7 +61,12 @@ const withEnv = (overrides, fn) => {
   const saved = Object.fromEntries(
     Object.keys(overrides).map(name => [name, process.env[name]])
   )
+  const touchesAgeKey = Object.keys(overrides).some(name =>
+    AGE_KEY_VARIABLES.includes(name)
+  )
+  if (touchesAgeKey) forgetAgeKey()
   const restore = () => {
+    if (touchesAgeKey) forgetAgeKey()
     for (const [name, value] of Object.entries(saved)) {
       if (value === undefined) delete process.env[name]
       else process.env[name] = value

@@ -11,7 +11,6 @@ const write = require('./write')
 const store = require('./store')
 const { isEnvScalar, toDotenv, toEnv } = require('./format')
 const yaml = require('./yaml')
-const { withoutAgeKey } = require('./keys')
 const { OnesecretError } = require('./error')
 
 const HELP = fs.readFileSync(
@@ -268,7 +267,7 @@ const readSetValue = (name, current, { interactive = tty.isatty(0) } = {}) =>
 
 const exec = (flags, command) => {
   if (command.length === 0) usage('exec needs a command after --')
-  const env = withoutAgeKey(process.env)
+  const env = { ...process.env }
   if (flags.env) env.NODE_ENV = flags.env
   secrets.writeEnv(
     { ...readOptions(flags), processEnv: env },

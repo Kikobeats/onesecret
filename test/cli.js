@@ -10,7 +10,8 @@ const {
   cli: rawCli,
   fakeBinary,
   project,
-  temporaryDir
+  temporaryDir,
+  withEnv
 } = require('./helpers')
 
 const withKey = { SOPS_AGE_KEY: FIXTURE_KEY }
@@ -216,14 +217,21 @@ test('edit opens the decrypted layer and encrypts what the editor saved', t => {
 test('exec runs the command with the secrets and without the key', t => {
   const cwd = project({ fixture: 'app' })
   const script =
-    'console.log(JSON.stringify({ db: process.env.DATABASE_URL, key: process.env.SOPS_AGE_KEY ?? null }))'
+    'console.log(JSON.stringify({ db: process.env.DATABASE_URL, key: Object.keys(process.env).filter(name => name.startsWith("SOPS_AGE_KEY")) }))'
   const result = cli(
     ['exec', '-e', 'production', '--', process.execPath, '-e', script],
-    { cwd, env: withKey }
+    {
+      cwd,
+      env: {
+        ...withKey,
+        SOPS_AGE_KEY_FILE: '/nowhere',
+        SOPS_AGE_KEY_CMD: 'false'
+      }
+    }
   )
   t.deepEqual(JSON.parse(result.stdout), {
     db: 'postgres://fixture-production',
-    key: null
+    key: []
   })
 })
 
@@ -1462,9 +1470,7 @@ test('set shows a null value as empty, not as the text null', t => {
       { recipients: [require('../src/age').recipientOf(FIXTURE_KEY)] }
     )
   )
-  const previousKey = process.env.SOPS_AGE_KEY
-  process.env.SOPS_AGE_KEY = FIXTURE_KEY
-  try {
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
     let shown
     const result = write.set({ cwd }, 'default', 'NOTHING', current => {
       shown = current
@@ -1472,10 +1478,7 @@ test('set shows a null value as empty, not as the text null', t => {
     })
     t.is(shown, '')
     t.is(result.status, 'encrypted')
-  } finally {
-    if (previousKey === undefined) delete process.env.SOPS_AGE_KEY
-    else process.env.SOPS_AGE_KEY = previousKey
-  }
+  })
 })
 
 const terminalCli = (args, { cwd, env, editor }) => {

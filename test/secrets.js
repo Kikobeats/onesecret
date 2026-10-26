@@ -343,16 +343,95 @@ test('checksum ignores order and changes with any value', t => {
   t.regex(onesecret.checksum({}), /^[a-f0-9]{64}$/)
 })
 
-test('withoutAgeKey drops every age key variable', t => {
-  t.deepEqual(
-    onesecret.withoutAgeKey({
-      SOPS_AGE_KEY: 'a',
-      SOPS_AGE_KEY_FILE: 'b',
-      SOPS_AGE_KEY_CMD: 'c',
-      PATH: '/bin'
-    }),
-    { PATH: '/bin' }
+const runWithKey = (cwd, script, env = {}) => {
+  const { stdout, stderr, status } = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      `const onesecret = require(${JSON.stringify(
+        path.join(__dirname, '..', 'src')
+      )});${script}`
+    ],
+    {
+      cwd,
+      encoding: 'utf8',
+      env: {
+        PATH: process.env.PATH,
+        HOME: cwd,
+        SOPS_AGE_KEY: FIXTURE_KEY,
+        ...env
+      }
+    }
   )
+  if (status !== 0) throw new Error(stderr)
+  return JSON.parse(stdout)
+}
+
+test('requiring onesecret takes the age key out of process.env and keeps decrypting with it', t => {
+  const cwd = project({ fixture: 'app' })
+  const keyFile = path.join(cwd, 'keys.txt')
+  fs.writeFileSync(keyFile, FIXTURE_KEY)
+  const result = runWithKey(
+    cwd,
+    `const child = require('node:child_process').execFileSync(process.execPath, ['-e', 'console.log(JSON.stringify(Object.keys(process.env).filter(name => name.startsWith("SOPS_AGE_KEY"))))'], { encoding: 'utf8' });
+    console.log(JSON.stringify({
+      env: Object.keys(process.env).filter(name => name.startsWith('SOPS_AGE_KEY')),
+      child: JSON.parse(child),
+      first: onesecret.secrets({ env: 'production' }).DATABASE_URL,
+      second: onesecret.secrets({ env: 'default' }).S3_KEY
+    }))`,
+    { SOPS_AGE_KEY_FILE: keyFile, SOPS_AGE_KEY_CMD: 'false' }
+  )
+  t.deepEqual(result, {
+    env: [],
+    child: [],
+    first: PRODUCTION_SECRETS.DATABASE_URL,
+    second: DEFAULT_SECRETS.S3_KEY
+  })
+})
+
+test('a key set after requiring onesecret is taken on the next call', t => {
+  const cwd = project({ fixture: 'app' })
+  const result = runWithKey(
+    cwd,
+    `process.env.SOPS_AGE_KEY = ${JSON.stringify(FIXTURE_KEY)};
+    const value = onesecret.secrets({ env: 'default' }).S3_KEY;
+    console.log(JSON.stringify({ value, left: process.env.SOPS_AGE_KEY ?? null }))`,
+    { SOPS_AGE_KEY: undefined }
+  )
+  t.deepEqual(result, { value: DEFAULT_SECRETS.S3_KEY, left: null })
+})
+
+test('a second copy of onesecret decrypts with the key the first one took', t => {
+  const cwd = project({ fixture: 'app' })
+  const result = runWithKey(
+    cwd,
+    `const first = onesecret.secrets({ env: 'default' }).S3_KEY;
+    for (const id of Object.keys(require.cache)) delete require.cache[id];
+    const copy = require(${JSON.stringify(path.join(__dirname, '..', 'src'))});
+    console.log(JSON.stringify({ first, copy: copy.secrets({ env: 'default' }).S3_KEY }))`
+  )
+  t.deepEqual(result, {
+    first: DEFAULT_SECRETS.S3_KEY,
+    copy: DEFAULT_SECRETS.S3_KEY
+  })
+})
+
+test('an empty key variable drops the key onesecret holds', t => {
+  const cwd = project({ fixture: 'app' })
+  const result = runWithKey(
+    cwd,
+    `const before = onesecret.secrets({ env: 'default' }).S3_KEY;
+    process.env.SOPS_AGE_KEY = '';
+    let code = null;
+    try { onesecret.secrets({ env: 'default' }) } catch (error) { code = error.code }
+    console.log(JSON.stringify({ before, code, left: process.env.SOPS_AGE_KEY ?? null }))`
+  )
+  t.deepEqual(result, {
+    before: DEFAULT_SECRETS.S3_KEY,
+    code: 'ENOKEY',
+    left: null
+  })
 })
 
 test('without config files, load returns nothing but config fails', t => {

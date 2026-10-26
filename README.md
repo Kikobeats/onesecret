@@ -521,9 +521,13 @@ Because it comes from `package.json`, `keyCommand` is as trusted as an npm scrip
 
 ### Keeping the key away from your app
 
-`exec` removes `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` before it starts your command, so the command gets the secrets but not the key.
+When onesecret loads, it takes `SOPS_AGE_KEY`, `SOPS_AGE_KEY_FILE`, and `SOPS_AGE_KEY_CMD` out of `process.env` and keeps them in memory. Your app gets the secrets, and no process it starts afterwards (a `kubectl` or `fly` call, a browser, the command you pass to `exec`) sees the key.
 
-Two things still see it: the keys file stays readable on disk to anything running as you, and `edit` and `keyCommand` run with your full environment.
+- Every copy of onesecret in the process shares the key it holds, so two versions in `node_modules` or a module registry reset keep working. A worker thread copies `process.env` after the key is gone, so it cannot decrypt.
+- A key variable you set later is taken the next time onesecret reads the key and replaces the one it holds. A process started before that read still sees it.
+- Deleting a key variable changes nothing, since onesecret already holds it. Set it to an empty string to drop the key, for example in a test of what happens without one.
+- Code that reads `SOPS_AGE_KEY` itself finds it unset once onesecret is loaded.
+- The keys file stays on disk, readable to anything running as you.
 
 ### New environments use the same key
 
