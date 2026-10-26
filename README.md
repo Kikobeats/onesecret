@@ -653,7 +653,7 @@ const { STRIPE_KEY, DATABASE_URL } = config.required // throws for an unset name
 - A path is a dot string or an array of keys, such as `['database', 'pool']`. A string matches an exact name first, so `get('log.level')` reads a key named `log.level` before it looks into `log`. Only config values count: `has('constructor')`, `has('get')`, and `has('hosts.length')` are `false`.
 - The accessors are not enumerable, so they stay out of `Object.keys`, spread, and `JSON.stringify`. A config value named `get`, `has`, `require`, or `required` is refused.
 - `config.required` is only for destructuring: every name read from it is required, so `JSON.stringify(config.required)` or `await config.required` throws.
-- They work like [miconfig](https://github.com/Kikobeats/miconfig)'s with two differences. `0`, `false`, `''`, and `null` count as set. Values are not parsed again: they keep their YAML type, and a value from the environment takes the file's type, so `PORT=8080` over `PORT: 3000` reads `8080`.
+- `0`, `false`, `''`, and `null` count as set. Values keep their YAML type, and a value from the environment takes the file's type, so `PORT=8080` over `PORT: 3000` reads `8080`.
 
 </details>
 
