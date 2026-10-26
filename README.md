@@ -653,7 +653,7 @@ const { STRIPE_KEY, DATABASE_URL } = config.required // throws for an unset name
 - A path is a dot string or an array of keys, such as `['database', 'pool']`. A string matches an exact name first, so `get('log.level')` reads a key named `log.level` before it looks into `log`. Only config values count: `has('constructor')`, `has('get')`, and `has('hosts.length')` are `false`.
 - The accessors are not enumerable, so they stay out of `Object.keys`, spread, and `JSON.stringify`. A config value named `get`, `has`, `require`, or `required` is refused.
 - `config.required` is only for destructuring: every name read from it is required, so `JSON.stringify(config.required)` or `await config.required` throws.
-- They work like [miconfig](https://github.com/Kikobeats/miconfig)'s with two differences. `0`, `false`, `''`, and `null` count as set. Values are not parsed again: they keep their YAML type, and a value from the environment is a string unless it matches the file's value, so `PORT=8080` over `PORT: 3000` reads `'8080'`.
+- They work like [miconfig](https://github.com/Kikobeats/miconfig)'s with two differences. `0`, `false`, `''`, and `null` count as set. Values are not parsed again: they keep their YAML type, and a value from the environment takes the file's type, so `PORT=8080` over `PORT: 3000` reads `8080`.
 
 </details>
 
@@ -707,7 +707,7 @@ A secret must be a string, number, or boolean, since the platform injects it as 
 - `env()` writes every top-level value that is a string, number, boolean, or `null` into `process.env`, as a string.
 - `config()` returns the merged object with the YAML types kept, so `TIMEOUT: 60000` comes back as the number `60000`, while `env()` sets `process.env.TIMEOUT` to `"60000"`.
 - Nested objects and lists, and names that are not valid variable names (such as `log-level`), are returned by `config()` but never written into `process.env`.
-- A value the environment provides comes back with its file's type when the string matches it, so `PORT=3000` is the number `3000` again, even for a secret, whose type is plaintext in the encrypted file.
+- A value the environment provides comes back with its file's type, so `PORT=8080` over `PORT: 3000` is the number `8080`, `DEBUG=true` over `DEBUG: false` is `true`, and a secret takes the type sops recorded for it. Text that does not read back exactly as that type, such as `0x10`, `1e3`, or `yes`, stays a string, and a string in the file always stays a string, so `PLAN_ID=0123` keeps its leading zero.
 
 </details>
 

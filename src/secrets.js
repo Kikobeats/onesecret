@@ -287,18 +287,22 @@ const envStringOf = value => (value === null ? '' : String(value))
 const roundTrips = (value, text) =>
   value !== undefined && envStringOf(value) === text
 
-const typedSecret = (text, secret) => {
-  const parse = secret && ENV_PARSERS[secret.type]
+const PLAIN_TYPES = { number: 'float', bigint: 'int', boolean: 'bool' }
+
+const plainTypeOf = value =>
+  value === null ? 'null' : PLAIN_TYPES[typeof value]
+
+const typedAs = (text, type) => {
+  const parse = ENV_PARSERS[type]
   const value = parse ? parse(text) : undefined
   return roundTrips(value, text) ? value : text
 }
 
 const typedFromEnv = (name, text, merged, secret) => {
-  if (secret || !Object.hasOwn(merged, name)) {
-    return typedSecret(text, secret)
-  }
+  if (secret) return typedAs(text, secret.type)
+  if (!Object.hasOwn(merged, name)) return text
   const value = merged[name]
-  return isExportable(name, value) && roundTrips(value, text) ? value : text
+  return isExportable(name, value) ? typedAs(text, plainTypeOf(value)) : text
 }
 
 const assertScalarSecrets = (secrets, missing) => {
