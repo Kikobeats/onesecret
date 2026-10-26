@@ -1,3 +1,16 @@
+## [0.2.0](https://github.com/kikobeats/onesecret/compare/v0.1.2...v0.2.0) (2026-10-26)
+
+### ⚠ BREAKING CHANGES
+
+* withoutAgeKey is removed, since process.env no
+  longer holds the key. Code that reads SOPS_AGE_KEY itself finds it
+  unset once onesecret is loaded; set it to an empty string to drop
+  the held key.
+
+### Features
+
+* keep the age key out of process.env ([#23](https://github.com/kikobeats/onesecret/issues/23)) ([6979ef2](https://github.com/kikobeats/onesecret/commit/6979ef2d14b189219ca0408d0ef04a3030fd6ef9))
+
 ## [0.1.2](https://github.com/kikobeats/onesecret/compare/v0.1.1...v0.1.2) (2026-10-26)
 
 ### Features
