@@ -1,3 +1,9 @@
+## [0.1.1](https://github.com/kikobeats/onesecret/compare/v0.1.0...v0.1.1) (2026-10-26)
+
+### Features
+
+* secrets() and secretNames() for deploy scripts ([#21](https://github.com/kikobeats/onesecret/issues/21)) ([0f4f614](https://github.com/kikobeats/onesecret/commit/0f4f6148feff202049b30e9107755cf35fa62aaa))
+
 ## 0.1.0 (2026-10-25)
 
 ### ⚠ BREAKING CHANGES
