@@ -669,6 +669,27 @@ require('onesecret').env()
 </details>
 
 <details>
+<summary><strong>API: secrets() and secretNames()</strong></summary>
+
+For deploy scripts written in Node.js, the same values as `onesecret dotenv --json` and the same names as `onesecret ls`, without spawning the CLI:
+
+```js
+const onesecret = require('onesecret')
+
+const secrets = onesecret.secrets({ env: 'production' }) // { DATABASE_URL: 'postgres://…', … }
+const names = onesecret.secretNames({ env: 'production' }) // ['DATABASE_URL', …]
+
+onesecret.checksum(secrets) // roll pods when a value changes
+```
+
+- `secrets()` decrypts every secret of the env, merged over `default`, and returns each value as a string, ready to push to your platform. It ignores what is already in the environment.
+- It runs `keyCommand` in any env, like the CLI, since a deploy script calls it on purpose.
+- `secretNames()` needs no key.
+- Both take the options above. With `env`, the layer file must exist, so a typo such as `prodution` throws `EVALUE` instead of reading the default layer alone; pass `env: 'default'` for the default layer.
+
+</details>
+
+<details>
 <summary><strong>API: helpers</strong></summary>
 
 Helpers: turn secrets into environment strings, render them as dotenv, hash them in an order-independent way, and drop the age key variables from an environment.

@@ -6,7 +6,7 @@ const path = require('node:path')
 const sops = require('./sops')
 const store = require('./store')
 const { withIdentities } = require('./keys')
-const { isEnvName, isEnvScalar, toEnvValue } = require('./format')
+const { isEnvName, isEnvScalar, toEnv, toEnvValue } = require('./format')
 const { OnesecretError } = require('./error')
 const { withAccessors } = require('./accessors')
 
@@ -224,6 +224,15 @@ const requireEnvLayer = (layered, message) => {
   return layered
 }
 
+const readEnvLayers = (input, subject) => {
+  const layered = readLayers(input)
+  if (!optionsOf(input).env) return layered
+  return requireEnvLayer(
+    layered,
+    `${subject} found no "${layered.env}" layer in ${layered.dir}, check the env name`
+  )
+}
+
 const loadLayers = ({ layers, keyCommand }) =>
   mergeLayers(layers, decryptOnce(layers, keyCommand))
 
@@ -236,6 +245,11 @@ const get = (input, name) => {
 
 const loadSecrets = layered =>
   pick(loadLayers(layered), secretNamesOf(layered.layers))
+
+const secretValues = input =>
+  toEnv(loadSecrets(readEnvLayers(input, 'secrets()')))
+
+const secretNames = input => namesOf(readEnvLayers(input, 'secretNames()'))
 
 const isUnset = (target, name) =>
   !Object.hasOwn(target, name) || target[name] === undefined
@@ -381,7 +395,10 @@ module.exports = {
   loadSecrets,
   namesOf,
   requireEnvLayer,
+  readEnvLayers,
   readLayers,
+  secretNames,
+  secretValues,
   writeEnv,
   resolveOptions
 }

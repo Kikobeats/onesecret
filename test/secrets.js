@@ -64,6 +64,68 @@ test.serial('load merges the env layer over the default layer', t => {
   })
 })
 
+test('secretNames lists the secrets of an env without a key and refuses an unknown env', t => {
+  const cwd = project({ fixture: 'app' })
+  t.deepEqual(
+    onesecret.secretNames({ cwd, env: 'production' }),
+    Object.keys(PRODUCTION_SECRETS)
+  )
+  t.deepEqual(
+    onesecret.secretNames({ cwd, env: 'default' }),
+    Object.keys(DEFAULT_SECRETS)
+  )
+  const typo = t.throws(() => onesecret.secretNames({ cwd, env: 'prodution' }))
+  t.is(typo.code, 'EVALUE')
+  t.regex(typo.message, /secretNames\(\) found no "prodution" layer/)
+})
+
+test.serial('secrets decrypts the merged secrets of an env as strings', t => {
+  const cwd = project({ fixture: 'app' })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY }, () => {
+    t.deepEqual(
+      onesecret.secrets({ cwd, env: 'production' }),
+      onesecret.toEnv(PRODUCTION_SECRETS)
+    )
+    t.deepEqual(
+      onesecret.secrets({ cwd, env: 'default' }),
+      onesecret.toEnv(DEFAULT_SECRETS)
+    )
+    t.is(onesecret.secrets({ cwd, env: 'production' }).PORT, '3000')
+    const typo = t.throws(() => onesecret.secrets({ cwd, env: 'prodution' }))
+    t.is(typo.code, 'EVALUE')
+    t.regex(typo.message, /secrets\(\) found no "prodution" layer/)
+  })
+})
+
+test.serial('secrets ignores values already in the environment', t => {
+  const cwd = project({ fixture: 'app' })
+  withEnv({ SOPS_AGE_KEY: FIXTURE_KEY, S3_KEY: 'from-env' }, () => {
+    t.is(onesecret.secrets({ cwd, env: 'production' }).S3_KEY, 'AKIA-default')
+  })
+})
+
+test.serial(
+  'secrets runs keyCommand even for a deployed env, and fails without a key',
+  t => {
+    const { command, calls } = keyCommandPrinting(FIXTURE_KEY)
+    const cwd = project({
+      fixture: 'app',
+      packageJson: { onesecret: { keyCommand: command } }
+    })
+    t.is(
+      onesecret.secrets({ cwd, env: 'production' }).DATABASE_URL,
+      'postgres://fixture-production'
+    )
+    t.is(calls(), 1)
+    const keyless = project({ fixture: 'app' })
+    t.is(
+      t.throws(() => onesecret.secrets({ cwd: keyless, env: 'production' }))
+        .code,
+      'ENOKEY'
+    )
+  }
+)
+
 test.serial('the env layer defaults to NODE_ENV', t => {
   const cwd = project({ fixture: 'app' })
   withEnv({ SOPS_AGE_KEY: FIXTURE_KEY, NODE_ENV: 'production' }, () => {
