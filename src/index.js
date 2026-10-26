@@ -2,7 +2,6 @@
 
 const { config, env, secretNames, secretValues } = require('./secrets')
 const { checksum, toDotenv, toEnv } = require('./format')
-const { withoutAgeKey } = require('./keys')
 const { OnesecretError } = require('./error')
 
 module.exports = {
@@ -13,6 +12,5 @@ module.exports = {
   secrets: secretValues,
   toDotenv,
   toEnv,
-  withoutAgeKey,
   OnesecretError
 }
