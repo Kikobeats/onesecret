@@ -39,3 +39,10 @@ coverage
 # Cover build scratch output
 ############################
 docs/cover/scratch
+
+############################
+# Benchmark
+############################
+benchmark-output.json
+head-output.json
+cache/
