@@ -547,15 +547,19 @@ If none of them opens the file, it runs `SOPS_AGE_KEY_CMD` or the `keyCommand` s
 
 ### Fetch the key with a command
 
-With `keyCommand`, nobody keeps the key on disk. It is a command that prints the key, for example from a GitLab CI variable (`glab`) or from 1Password (`op`). Set it in `package.json`:
+With `keyCommand`, nobody keeps the key on disk. It is a command that prints the key, run the first time a secret has to be decrypted, so the key stays wherever your team already keeps credentials. With 1Password, set it in `package.json`:
 
 ```json
 {
   "onesecret": {
-    "keyCommand": "glab variable get SOPS_AGE_KEY -R my-group/my-project"
+    "keyCommand": "op read op://Engineering/onesecret/private-key"
   }
 }
 ```
+
+Every teammate signed in to 1Password with access to that vault can run the app, and nobody else can. Removing someone's access stops them from fetching the key again.
+
+On GitHub, keep the key in two places: as an Actions secret for CI, and in a password manager for laptops. Actions secrets cannot be read back once set, so `gh` cannot fetch them for `keyCommand`. On GitLab, a CI/CD variable can be read back by maintainers, so `glab variable get SOPS_AGE_KEY -R my-group/my-project` works too.
 
 It runs at most once per process, whether it works or not. `config()` and `env()` never run it in `production` or `staging`, so a missing secret there fails the boot instead of fetching a key. The CLI (`exec`, `get`, `dotenv`) runs it in any environment, since you call it on purpose.
 
