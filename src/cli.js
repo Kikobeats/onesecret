@@ -314,7 +314,7 @@ const COMMANDS = {
       'It is shown only now and saved nowhere, so store it safely (and as',
       'SOPS_AGE_KEY in CI). To use it in this shell:',
       '',
-      `  export SOPS_AGE_KEY=${result.identity}`
+      `export SOPS_AGE_KEY=${result.identity}`
     ].join('\n')
   },
   set: (flags, args) => {

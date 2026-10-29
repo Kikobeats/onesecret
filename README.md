@@ -1,7 +1,7 @@
 # onesecret
 
-![Last version](https://img.shields.io/github/tag/kikobeats/onesecret.svg?style=flat-square)
-[![Coverage Status](https://img.shields.io/coveralls/kikobeats/onesecret.svg?style=flat-square)](https://coveralls.io/github/kikobeats/onesecret)
+![Last version](https://img.shields.io/github/tag/Kikobeats/onesecret.svg?style=flat-square)
+[![Coverage Status](https://img.shields.io/coveralls/Kikobeats/onesecret.svg?style=flat-square)](https://coveralls.io/github/Kikobeats/onesecret)
 [![NPM Status](https://img.shields.io/npm/dm/onesecret.svg?style=flat-square)](https://www.npmjs.org/package/onesecret)
 
 > Keep just one secret to decrypt the rest.
@@ -70,7 +70,7 @@ The private key is the only secret to keep: it decrypts all the others.
 It is shown only now and saved nowhere, so store it safely (and as
 SOPS_AGE_KEY in CI). To use it in this shell:
 
-  export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
+export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 ```
 
 onesecret encrypts with [age](https://age-encryption.org), a small modern encryption tool, and writes files in the SOPS format, which is where the name `SOPS_AGE_KEY` comes from. The private key decrypts: copy it into your password manager now, and never commit it. The public key only encrypts, and it is already written into the file, so you don't need to keep it. Then run the `export` line, so the next commands can use the key.
