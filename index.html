@@ -5,9 +5,9 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>onesecret: SOPS + age secrets for Node.js</title>
-  <meta name="description" content="Keep just one secret to decrypt the rest. Commit your credentials encrypted next to your code as SOPS files, and decrypt them in Node.js with one age key and no binaries to install." />
-  <meta name="keywords" content="onesecret, sops, age, secrets, encryption, dotenv, config, Node.js, Kubernetes secrets, Fly.io secrets" />
+  <title>onesecret: encrypted secrets in your repo, for Node.js</title>
+  <meta name="description" content="Keep just one secret to decrypt the rest. Commit your app&#39;s secrets encrypted next to your code, open them all with one key, and keep it off your servers." />
+  <meta name="keywords" content="onesecret, encrypted secrets, secrets management, environment variables, dotenv, sops, age, Node.js, Kubernetes secrets, Fly.io secrets" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <meta name="theme-color" content="#fbfaf6" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0f110f" media="(prefers-color-scheme: dark)" />
@@ -15,8 +15,8 @@
   <link rel="alternate" type="text/markdown" href="https://onesecret.js.org/README.md" title="onesecret documentation markdown" />
   <link rel="author" href="https://kikobeats.com" />
 
-  <meta property="og:title" content="onesecret: SOPS + age secrets for Node.js" />
-  <meta property="og:description" content="Keep just one secret to decrypt the rest. Commit your credentials encrypted next to your code, and decrypt them with one age key and no binaries to install." />
+  <meta property="og:title" content="onesecret: encrypted secrets in your repo, for Node.js" />
+  <meta property="og:description" content="Keep just one secret to decrypt the rest. Commit your app&#39;s secrets encrypted next to your code, open them all with one key, and keep it off your servers." />
   <meta property="og:image" content="https://onesecret.js.org/static/banner.jpg?v=902d4139" />
   <meta property="og:image:width" content="2400" />
   <meta property="og:image:height" content="1260" />
@@ -29,8 +29,8 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:site" content="@Kikobeats" />
   <meta name="twitter:creator" content="@Kikobeats" />
-  <meta name="twitter:title" content="onesecret: SOPS + age secrets for Node.js" />
-  <meta name="twitter:description" content="Keep just one secret to decrypt the rest. Commit your credentials encrypted next to your code, and decrypt them with one age key and no binaries to install." />
+  <meta name="twitter:title" content="onesecret: encrypted secrets in your repo, for Node.js" />
+  <meta name="twitter:description" content="Keep just one secret to decrypt the rest. Commit your app&#39;s secrets encrypted next to your code, open them all with one key, and keep it off your servers." />
   <meta name="twitter:image" content="https://onesecret.js.org/static/banner.jpg?v=902d4139" />
   <meta name="twitter:image:alt" content="onesecret logo, a key, with the tagline: keep just one secret to decrypt the rest" />
   <meta name="twitter:label1" content="Installation" />
@@ -55,7 +55,7 @@
         "@id": "https://onesecret.js.org/#website",
         "name": "onesecret",
         "url": "https://onesecret.js.org/",
-        "description": "Documentation for onesecret, SOPS + age secrets for Node.js with no binaries to install.",
+        "description": "Documentation for onesecret: commit your app's secrets encrypted in your repository and open them all with one key.",
         "publisher": { "@id": "https://kikobeats.com/#person" },
         "inLanguage": "en"
       },
@@ -77,12 +77,14 @@
         "runtimePlatform": "Node.js >= 24",
         "license": "https://github.com/Kikobeats/onesecret/blob/master/LICENSE.md",
         "author": { "@id": "https://kikobeats.com/#person" },
-        "description": "Keep just one secret to decrypt the rest. SOPS + age secrets for Node.js, with no binaries to install.",
+        "description": "Keep just one secret to decrypt the rest. Commit your app's secrets encrypted next to your code, open them all with one key, and keep it off your servers.",
         "featureList": [
-          "One age key decrypts every environment",
-          "Layered plain settings and encrypted secrets merged into one object",
-          "Production boots without the key when the platform injects the secrets",
+          "Secrets committed encrypted next to the code, reviewed and versioned with it",
+          "One key opens every secret in every environment",
+          "Servers never hold the key: deploys hand the values to the platform",
+          "Plain settings and secrets merged into one object",
           "Fails at boot naming every missing secret",
+          "Standard SOPS + age files, with no binaries to install",
           "Deploy recipes for Kubernetes, Fly.io, Vercel, Netlify, Cloudflare Workers, AWS, Google Cloud Run, and more"
         ],
         "offers": {
