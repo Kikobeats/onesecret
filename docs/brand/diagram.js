@@ -14,8 +14,8 @@ const PALETTE = {
     line: '#e3e0d6',
     zone: 'rgba(22,21,15,0.025)',
     store: 'rgba(22,21,15,0.04)',
-    hot: '#b4540a',
-    hotFill: 'rgba(180,84,10,0.08)',
+    accent: '#0a7448',
+    accentFill: 'rgba(10,116,72,0.08)',
     app: '#ffffff'
   },
   dark: {
@@ -25,8 +25,8 @@ const PALETTE = {
     line: '#2e332f',
     zone: 'rgba(235,233,226,0.025)',
     store: 'rgba(235,233,226,0.05)',
-    hot: '#f5a95c',
-    hotFill: 'rgba(245,169,92,0.10)',
+    accent: '#3ddc97',
+    accentFill: 'rgba(61,220,151,0.10)',
     app: '#1a1e1b'
   }
 }
@@ -43,15 +43,15 @@ const STYLE = `svg{${variables(
 const KINDS = {
   store: { fill: 'var(--store)', stroke: 'var(--muted)', tag: 'var(--muted)' },
   key: {
-    fill: 'var(--hotFill)',
-    stroke: 'var(--hot)',
-    tag: 'var(--hot)',
+    fill: 'var(--accentFill)',
+    stroke: 'var(--accent)',
+    tag: 'var(--accent)',
     dash: '4,4'
   },
   plaintext: {
-    fill: 'var(--hotFill)',
-    stroke: 'var(--hot)',
-    tag: 'var(--hot)'
+    fill: 'var(--accentFill)',
+    stroke: 'var(--accent)',
+    tag: 'var(--accent)'
   },
   platform: {
     fill: 'var(--store)',

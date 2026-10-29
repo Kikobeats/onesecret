@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="deploy-title deploy-description">
 <title id="deploy-title">How onesecret deploys</title>
 <desc id="deploy-description">The deploy job reads the encrypted config/ files and the one age key, decrypts the values in memory, and hands them to the hosting platform. The app starts with every secret already in its environment, so it never holds the key.</desc>
-<style>svg{--paper:#fbfaf6;--ink:#16150f;--muted:#5e5c53;--line:#e3e0d6;--zone:rgba(22,21,15,0.025);--store:rgba(22,21,15,0.04);--hot:#b4540a;--hotFill:rgba(180,84,10,0.08);--app:#ffffff}@media (prefers-color-scheme:dark){svg{--paper:#0f110f;--ink:#ebe9e2;--muted:#a8a59b;--line:#2e332f;--zone:rgba(235,233,226,0.025);--store:rgba(235,233,226,0.05);--hot:#f5a95c;--hotFill:rgba(245,169,92,0.10);--app:#1a1e1b}}</style>
+<style>svg{--paper:#fbfaf6;--ink:#16150f;--muted:#5e5c53;--line:#e3e0d6;--zone:rgba(22,21,15,0.025);--store:rgba(22,21,15,0.04);--accent:#0a7448;--accentFill:rgba(10,116,72,0.08);--app:#ffffff}@media (prefers-color-scheme:dark){svg{--paper:#0f110f;--ink:#ebe9e2;--muted:#a8a59b;--line:#2e332f;--zone:rgba(235,233,226,0.025);--store:rgba(235,233,226,0.05);--accent:#3ddc97;--accentFill:rgba(61,220,151,0.10);--app:#1a1e1b}}</style>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
 <rect width="960" height="400" rx="12" fill="var(--paper)"/>
 <rect x="24" y="56" width="440" height="320" rx="8" fill="var(--zone)" stroke="var(--line)"/>
@@ -33,16 +33,16 @@
 <text x="138" y="141" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">*.enc.yml, committed</text>
 <text x="138" y="154" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">encrypted at rest</text>
 <rect x="48" y="252" width="180" height="72" rx="6" fill="var(--paper)"/>
-<rect x="48" y="252" width="180" height="72" rx="6" fill="var(--hotFill)" stroke="var(--hot)" stroke-dasharray="4,4"/>
-<rect x="56" y="260" width="32" height="13" rx="2" fill="none" stroke="var(--hot)" stroke-width="0.8"/>
-<text x="72" y="269.5" fill="var(--hot)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
+<rect x="48" y="252" width="180" height="72" rx="6" fill="var(--accentFill)" stroke="var(--accent)" stroke-dasharray="4,4"/>
+<rect x="56" y="260" width="32" height="13" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
+<text x="72" y="269.5" fill="var(--accent)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
 <text x="138" y="288" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">SOPS_AGE_KEY</text>
 <text x="138" y="305" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">a CI variable</text>
 <text x="138" y="318" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">the one secret kept</text>
 <rect x="276" y="164" width="168" height="96" rx="6" fill="var(--paper)"/>
-<rect x="276" y="164" width="168" height="96" rx="6" fill="var(--hotFill)" stroke="var(--hot)"/>
-<rect x="284" y="172" width="72" height="13" rx="2" fill="none" stroke="var(--hot)" stroke-width="0.8"/>
-<text x="320" y="181.5" fill="var(--hot)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEPLOY JOB</text>
+<rect x="276" y="164" width="168" height="96" rx="6" fill="var(--accentFill)" stroke="var(--accent)"/>
+<rect x="284" y="172" width="72" height="13" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
+<text x="320" y="181.5" fill="var(--accent)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEPLOY JOB</text>
 <text x="360" y="212" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">deploy script</text>
 <text x="360" y="229" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">onesecret dotenv</text>
 <text x="360" y="242" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">plaintext in memory only</text>

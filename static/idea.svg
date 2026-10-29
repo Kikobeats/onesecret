@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 372" width="960" height="372" role="img" aria-labelledby="idea-title idea-description">
 <title id="idea-title">One key opens every secret</title>
 <desc id="idea-description">One key, kept in a password manager, opens every encrypted file in the repository, one per environment. With the key, you, your teammates, and CI read every value; without it, a fork, a leak, or an old commit shows only the secret names.</desc>
-<style>svg{--paper:#fbfaf6;--ink:#16150f;--muted:#5e5c53;--line:#e3e0d6;--zone:rgba(22,21,15,0.025);--store:rgba(22,21,15,0.04);--hot:#b4540a;--hotFill:rgba(180,84,10,0.08);--app:#ffffff}@media (prefers-color-scheme:dark){svg{--paper:#0f110f;--ink:#ebe9e2;--muted:#a8a59b;--line:#2e332f;--zone:rgba(235,233,226,0.025);--store:rgba(235,233,226,0.05);--hot:#f5a95c;--hotFill:rgba(245,169,92,0.10);--app:#1a1e1b}}</style>
+<style>svg{--paper:#fbfaf6;--ink:#16150f;--muted:#5e5c53;--line:#e3e0d6;--zone:rgba(22,21,15,0.025);--store:rgba(22,21,15,0.04);--accent:#0a7448;--accentFill:rgba(10,116,72,0.08);--app:#ffffff}@media (prefers-color-scheme:dark){svg{--paper:#0f110f;--ink:#ebe9e2;--muted:#a8a59b;--line:#2e332f;--zone:rgba(235,233,226,0.025);--store:rgba(235,233,226,0.05);--accent:#3ddc97;--accentFill:rgba(61,220,151,0.10);--app:#1a1e1b}}</style>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
 <rect width="960" height="372" rx="12" fill="var(--paper)"/>
 <rect x="264" y="40" width="380" height="304" rx="8" fill="var(--zone)" stroke="var(--line)"/>
@@ -17,9 +17,9 @@
 <rect x="648" y="252" width="52" height="13" rx="2" fill="var(--paper)"/>
 <text x="674" y="261.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">NO KEY</text>
 <rect x="24" y="158" width="200" height="80" rx="6" fill="var(--paper)"/>
-<rect x="24" y="158" width="200" height="80" rx="6" fill="var(--hotFill)" stroke="var(--hot)" stroke-dasharray="4,4"/>
-<rect x="32" y="166" width="92" height="13" rx="2" fill="none" stroke="var(--hot)" stroke-width="0.8"/>
-<text x="78" y="175.5" fill="var(--hot)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">THE ONE SECRET</text>
+<rect x="24" y="158" width="200" height="80" rx="6" fill="var(--accentFill)" stroke="var(--accent)" stroke-dasharray="4,4"/>
+<rect x="32" y="166" width="92" height="13" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
+<text x="78" y="175.5" fill="var(--accent)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">THE ONE SECRET</text>
 <text x="124" y="198" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">your key</text>
 <text x="124" y="215" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">kept in a password manager</text>
 <text x="124" y="228" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">opens every file</text>
