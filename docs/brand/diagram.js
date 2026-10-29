@@ -3,7 +3,7 @@ const SANS = "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif"
 const SERIF = "Georgia, 'Times New Roman', serif"
 
 const TYPE = {
-  zone: { size: 10, charWidth: 7.4, tracking: '0.14em' },
+  zone: { size: 10, tracking: '0.14em' },
   label: { size: 11, charWidth: 7.5, tracking: '0.08em' },
   tag: { size: 10, charWidth: 6.8, tracking: '0.08em' },
   name: { size: 16 },
@@ -14,10 +14,10 @@ const CHIP_HEIGHT = 16
 const CHIP_PADDING = 14
 const TAG_INSET = 8
 const NODE_BOTTOM_PADDING = 10
+const ZONE_TITLE_INSET = 12
 
 const PALETTE = {
   light: {
-    paper: '#fbfaf6',
     ink: '#16150f',
     muted: '#5e5c53',
     line: '#e3e0d6',
@@ -28,7 +28,6 @@ const PALETTE = {
     app: '#ffffff'
   },
   dark: {
-    paper: '#0f110f',
     ink: '#ebe9e2',
     muted: '#a8a59b',
     line: '#2e332f',
@@ -79,41 +78,28 @@ const escape = text =>
 
 const snap = width => Math.ceil(width / 4) * 4
 
-export const zone = ({ x, y, width, height, title }) => {
-  const titleWidth = snap(title.length * TYPE.zone.charWidth + CHIP_PADDING)
-  return [
-    `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" fill="var(--zone)" stroke="var(--line)"/>`,
-    `<rect x="${x + 16}" y="${
-      y - CHIP_HEIGHT / 2
-    }" width="${titleWidth}" height="${CHIP_HEIGHT}" fill="var(--paper)"/>`,
-    `<text x="${x + 16 + titleWidth / 2}" y="${
-      y + 3.5
-    }" fill="var(--muted)" font-size="${
-      TYPE.zone.size
-    }" font-family="${MONO}" text-anchor="middle" letter-spacing="${
-      TYPE.zone.tracking
-    }">${escape(title)}</text>`
-  ]
-}
+export const zone = ({ x, y, width, height, title }) => [
+  `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="8" fill="var(--zone)" stroke="var(--line)"/>`,
+  `<text x="${x + ZONE_TITLE_INSET}" y="${
+    y + ZONE_TITLE_INSET + TYPE.zone.size / 2
+  }" fill="var(--muted)" font-size="${
+    TYPE.zone.size
+  }" font-family="${MONO}" letter-spacing="${TYPE.zone.tracking}">${escape(
+    title
+  )}</text>`
+]
 
 export const arrow = (d, { dashed = false } = {}) =>
   `<path d="${d}" fill="none" stroke="var(--muted)" stroke-width="1.3"${
     dashed ? ' stroke-dasharray="5,4"' : ''
   } marker-end="url(#arrow)"/>`
 
-export const label = ({ cx, y, text }) => {
-  const width = snap(text.length * TYPE.label.charWidth + CHIP_PADDING)
-  return [
-    `<rect x="${
-      cx - width / 2
-    }" y="${y}" width="${width}" height="${CHIP_HEIGHT}" rx="2" fill="var(--paper)"/>`,
-    `<text x="${cx}" y="${y + 12}" fill="var(--muted)" font-size="${
-      TYPE.label.size
-    }" font-family="${MONO}" text-anchor="middle" letter-spacing="${
-      TYPE.label.tracking
-    }">${escape(text)}</text>`
-  ]
-}
+export const label = ({ cx, y, text }) =>
+  `<text x="${cx}" y="${y + 12}" fill="var(--muted)" font-size="${
+    TYPE.label.size
+  }" font-family="${MONO}" text-anchor="middle" letter-spacing="${
+    TYPE.label.tracking
+  }">${escape(text)}</text>`
 
 const contentTop = y => y + TAG_INSET + CHIP_HEIGHT
 
@@ -129,7 +115,6 @@ export const node = ({ x, y, width, height, kind, tag, name, lines }) => {
   const cx = x + width / 2
   const nameY = nameBaseline({ y, height, lines })
   return [
-    `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="6" fill="var(--paper)"/>`,
     `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="6" fill="${fill}" stroke="${stroke}"${
       dash ? ` stroke-dasharray="${dash}"` : ''
     }/>`,
@@ -183,7 +168,6 @@ export const diagramSvg = ({
     `<desc id="${slug}-description">${escape(description)}</desc>`,
     `<style>${STYLE}</style>`,
     '<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>',
-    `<rect width="${width}" height="${height}" rx="12" fill="var(--paper)"/>`,
     ...scene,
     '</svg>',
     ''

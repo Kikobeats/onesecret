@@ -3,7 +3,7 @@ import { arrow, diagramSvg, label, node, zone } from './diagram.js'
 export const IDEA = { width: 760, height: 324 }
 
 const ENVIRONMENTS = ['default', 'staging', 'production']
-const FILE = { x: 216, width: 248, height: 72, top: 52, gap: 10 }
+const FILE = { x: 216, width: 248, height: 72, top: 58, gap: 10 }
 const KEY = { x: 16, width: 152, height: 84 }
 const OUTCOME = { x: 536, width: 208, height: 96 }
 const REPO_RIGHT = 480
@@ -14,7 +14,9 @@ const fork = FILE.x - 24
 
 const keyToFile = index => {
   const target = fileCenter(index)
-  if (target === keyCenter) { return arrow(`M ${KEY.x + KEY.width},${keyCenter} H ${FILE.x}`) }
+  if (target === keyCenter) {
+    return arrow(`M ${KEY.x + KEY.width},${keyCenter} H ${FILE.x}`)
+  }
   const turn = target < keyCenter ? -8 : 8
   return arrow(
     `M ${KEY.x + KEY.width},${keyCenter} H ${
@@ -29,7 +31,7 @@ const outcome = ({ y, label: text, dashed, ...rest }) => {
   const center = y + OUTCOME.height / 2
   return [
     arrow(`M ${REPO_RIGHT},${center} H ${OUTCOME.x}`, { dashed }),
-    ...label({ cx: (REPO_RIGHT + OUTCOME.x) / 2, y: center - 22, text }),
+    label({ cx: (REPO_RIGHT + OUTCOME.x) / 2, y: center - 22, text }),
     ...node({
       x: OUTCOME.x,
       y,
