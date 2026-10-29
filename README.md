@@ -34,7 +34,7 @@ sops:
     …  # which key opens the file, and a checksum that catches tampering
 ```
 
-The names stay readable, the values do not. Anyone who sees the repository, a fork, or an old commit learns which secrets exist and nothing more. With the key, onesecret turns it back into the values you wrote.
+The names stay readable. The values do not, except a name ending in `_unencrypted`, which is stored in plaintext on purpose. Anyone who sees the repository, a fork, or an old commit otherwise learns which secrets exist and nothing more. With the key, onesecret turns it back into the values you wrote.
 
 Everything else follows from that:
 
