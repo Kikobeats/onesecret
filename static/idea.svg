@@ -1,61 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 372" width="960" height="372" role="img" aria-labelledby="idea-title idea-description">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 324" width="760" height="324" role="img" aria-labelledby="idea-title idea-description">
 <title id="idea-title">One key opens every secret</title>
-<desc id="idea-description">One key, kept in a password manager, opens every encrypted file in the repository, one per environment. With the key, you, your teammates, and CI read every value; without it, a fork, a leak, or an old commit shows only the secret names.</desc>
+<desc id="idea-description">One key opens every encrypted file in the repository, one per environment. With the key, you, your teammates, and CI read every value; without it, a fork, a leak, or an old commit shows only the secret names.</desc>
 <style>svg{--paper:#fbfaf6;--ink:#16150f;--muted:#5e5c53;--line:#e3e0d6;--zone:rgba(22,21,15,0.025);--store:rgba(22,21,15,0.04);--accent:#0a7448;--accentFill:rgba(10,116,72,0.08);--app:#ffffff}@media (prefers-color-scheme:dark){svg{--paper:#0f110f;--ink:#ebe9e2;--muted:#a8a59b;--line:#2e332f;--zone:rgba(235,233,226,0.025);--store:rgba(235,233,226,0.05);--accent:#3ddc97;--accentFill:rgba(61,220,151,0.10);--app:#1a1e1b}}</style>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
-<rect width="960" height="372" rx="12" fill="var(--paper)"/>
-<rect x="264" y="40" width="380" height="304" rx="8" fill="var(--zone)" stroke="var(--line)"/>
-<rect x="280" y="34" width="164" height="12" fill="var(--paper)"/>
-<text x="362" y="43" fill="var(--muted)" font-size="8.5" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.14em">YOUR REPOSITORY · config/</text>
-<path d="M 224,198 H 246 Q 254,198 254,190 V 118 Q 254,110 262,110 H 284" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 224,198 H 284" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 224,198 H 246 Q 254,198 254,206 V 278 Q 254,286 262,286 H 284" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 644,124 H 704" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 644,272 H 704" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-<rect x="658" y="104" width="32" height="13" rx="2" fill="var(--paper)"/>
-<text x="674" y="113.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
-<rect x="648" y="252" width="52" height="13" rx="2" fill="var(--paper)"/>
-<text x="674" y="261.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">NO KEY</text>
-<rect x="24" y="158" width="200" height="80" rx="6" fill="var(--paper)"/>
-<rect x="24" y="158" width="200" height="80" rx="6" fill="var(--accentFill)" stroke="var(--accent)" stroke-dasharray="4,4"/>
-<rect x="32" y="166" width="92" height="13" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
-<text x="78" y="175.5" fill="var(--accent)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">THE ONE SECRET</text>
-<text x="124" y="198" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">your key</text>
-<text x="124" y="215" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">kept in a password manager</text>
-<text x="124" y="228" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">opens every file</text>
-<rect x="284" y="72" width="340" height="76" rx="6" fill="var(--paper)"/>
-<rect x="284" y="72" width="340" height="76" rx="6" fill="var(--store)" stroke="var(--muted)"/>
-<rect x="292" y="80" width="52" height="13" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
-<text x="318" y="89.5" fill="var(--muted)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEFAULT</text>
-<text x="454" y="110" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">default.enc.yml</text>
-<text x="454" y="127" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[AES256_GCM,…]</text>
-<text x="454" y="140" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY: ENC[AES256_GCM,…]</text>
-<rect x="284" y="160" width="340" height="76" rx="6" fill="var(--paper)"/>
-<rect x="284" y="160" width="340" height="76" rx="6" fill="var(--store)" stroke="var(--muted)"/>
-<rect x="292" y="168" width="52" height="13" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
-<text x="318" y="177.5" fill="var(--muted)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">STAGING</text>
-<text x="454" y="198" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">staging.enc.yml</text>
-<text x="454" y="215" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[AES256_GCM,…]</text>
-<text x="454" y="228" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY: ENC[AES256_GCM,…]</text>
-<rect x="284" y="248" width="340" height="76" rx="6" fill="var(--paper)"/>
-<rect x="284" y="248" width="340" height="76" rx="6" fill="var(--store)" stroke="var(--muted)"/>
-<rect x="292" y="256" width="72" height="13" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
-<text x="328" y="265.5" fill="var(--muted)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">PRODUCTION</text>
-<text x="454" y="286" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">production.enc.yml</text>
-<text x="454" y="303" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[AES256_GCM,…]</text>
-<text x="454" y="316" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY: ENC[AES256_GCM,…]</text>
-<rect x="704" y="72" width="232" height="104" rx="6" fill="var(--paper)"/>
-<rect x="704" y="72" width="232" height="104" rx="6" fill="var(--app)" stroke="var(--ink)"/>
-<rect x="712" y="80" width="116" height="13" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.8"/>
-<text x="770" y="89.5" fill="var(--ink)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">YOU, TEAMMATES, CI</text>
-<text x="820" y="124" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">every value</text>
-<text x="820" y="141" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL=postgres://…</text>
-<text x="820" y="154" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY=sk_live_…</text>
-<rect x="704" y="220" width="232" height="104" rx="6" fill="var(--paper)"/>
-<rect x="704" y="220" width="232" height="104" rx="6" fill="var(--store)" stroke="var(--line)"/>
-<rect x="712" y="228" width="180" height="13" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
-<text x="802" y="237.5" fill="var(--muted)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">A FORK, A LEAK, AN OLD COMMIT</text>
-<text x="820" y="272" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">names only</text>
-<text x="820" y="289" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[…]</text>
-<text x="820" y="302" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY: ENC[…]</text>
+<rect width="760" height="324" rx="12" fill="var(--paper)"/>
+<rect x="200" y="28" width="280" height="276" rx="8" fill="var(--zone)" stroke="var(--line)"/>
+<rect x="216" y="20" width="128" height="16" fill="var(--paper)"/>
+<text x="280" y="31.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.14em">YOUR REPOSITORY</text>
+<path d="M 168,170 H 184 Q 192,170 192,162 V 96 Q 192,88 200,88 H 216" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<path d="M 168,170 H 216" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<path d="M 168,170 H 184 Q 192,170 192,178 V 244 Q 192,252 200,252 H 216" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="16" y="128" width="152" height="84" rx="6" fill="var(--paper)"/>
+<rect x="16" y="128" width="152" height="84" rx="6" fill="var(--accentFill)" stroke="var(--accent)" stroke-dasharray="4,4"/>
+<rect x="24" y="136" width="36" height="16" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
+<text x="42" y="147.5" fill="var(--accent)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
+<text x="92" y="168" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">your key</text>
+<text x="92" y="185" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">the one secret</text>
+<text x="92" y="200" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">you keep</text>
+<rect x="216" y="52" width="248" height="72" rx="6" fill="var(--paper)"/>
+<rect x="216" y="52" width="248" height="72" rx="6" fill="var(--store)" stroke="var(--muted)"/>
+<rect x="224" y="60" width="64" height="16" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
+<text x="256" y="71.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEFAULT</text>
+<text x="340" y="93.5" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">default.enc.yml</text>
+<text x="340" y="110.5" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[…]</text>
+<rect x="216" y="134" width="248" height="72" rx="6" fill="var(--paper)"/>
+<rect x="216" y="134" width="248" height="72" rx="6" fill="var(--store)" stroke="var(--muted)"/>
+<rect x="224" y="142" width="64" height="16" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
+<text x="256" y="153.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">STAGING</text>
+<text x="340" y="175.5" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">staging.enc.yml</text>
+<text x="340" y="192.5" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[…]</text>
+<rect x="216" y="216" width="248" height="72" rx="6" fill="var(--paper)"/>
+<rect x="216" y="216" width="248" height="72" rx="6" fill="var(--store)" stroke="var(--muted)"/>
+<rect x="224" y="224" width="84" height="16" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
+<text x="266" y="235.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">PRODUCTION</text>
+<text x="340" y="257.5" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">production.enc.yml</text>
+<text x="340" y="274.5" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[…]</text>
+<path d="M 480,100 H 536" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="488" y="78" width="40" height="16" rx="2" fill="var(--paper)"/>
+<text x="508" y="90" fill="var(--muted)" font-size="11" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
+<rect x="536" y="52" width="208" height="96" rx="6" fill="var(--paper)"/>
+<rect x="536" y="52" width="208" height="96" rx="6" fill="var(--app)" stroke="var(--ink)"/>
+<rect x="544" y="60" width="140" height="16" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.8"/>
+<text x="614" y="71.5" fill="var(--ink)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">YOU, TEAMMATES, CI</text>
+<text x="640" y="98" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">every value</text>
+<text x="640" y="115" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL=postgres://…</text>
+<text x="640" y="130" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY=sk_live_…</text>
+<path d="M 480,240 H 536" fill="none" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<rect x="478" y="218" width="60" height="16" rx="2" fill="var(--paper)"/>
+<text x="508" y="230" fill="var(--muted)" font-size="11" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">NO KEY</text>
+<rect x="536" y="192" width="208" height="96" rx="6" fill="var(--paper)"/>
+<rect x="536" y="192" width="208" height="96" rx="6" fill="var(--store)" stroke="var(--line)"/>
+<rect x="544" y="200" width="164" height="16" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
+<text x="626" y="211.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">FORK, LEAK, OLD COMMIT</text>
+<text x="640" y="238" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">names only</text>
+<text x="640" y="255" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">DATABASE_URL: ENC[…]</text>
+<text x="640" y="270" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">STRIPE_KEY: ENC[…]</text>
 </svg>

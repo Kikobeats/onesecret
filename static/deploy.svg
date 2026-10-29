@@ -1,66 +1,61 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="deploy-title deploy-description">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 320" width="760" height="320" role="img" aria-labelledby="deploy-title deploy-description">
 <title id="deploy-title">How onesecret deploys</title>
 <desc id="deploy-description">The deploy job reads the encrypted config/ files and the one age key, decrypts the values in memory, and hands them to the hosting platform. The app starts with every secret already in its environment, so it never holds the key.</desc>
 <style>svg{--paper:#fbfaf6;--ink:#16150f;--muted:#5e5c53;--line:#e3e0d6;--zone:rgba(22,21,15,0.025);--store:rgba(22,21,15,0.04);--accent:#0a7448;--accentFill:rgba(10,116,72,0.08);--app:#ffffff}@media (prefers-color-scheme:dark){svg{--paper:#0f110f;--ink:#ebe9e2;--muted:#a8a59b;--line:#2e332f;--zone:rgba(235,233,226,0.025);--store:rgba(235,233,226,0.05);--accent:#3ddc97;--accentFill:rgba(61,220,151,0.10);--app:#1a1e1b}}</style>
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
-<rect width="960" height="400" rx="12" fill="var(--paper)"/>
-<rect x="24" y="56" width="440" height="320" rx="8" fill="var(--zone)" stroke="var(--line)"/>
-<rect x="40" y="50" width="148" height="12" fill="var(--paper)"/>
-<text x="114" y="59" fill="var(--muted)" font-size="8.5" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.14em">YOUR REPOSITORY AND CI</text>
-<rect x="500" y="56" width="436" height="320" rx="8" fill="var(--zone)" stroke="var(--line)"/>
-<rect x="516" y="50" width="140" height="12" fill="var(--paper)"/>
-<text x="586" y="59" fill="var(--muted)" font-size="8.5" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.14em">YOUR HOSTING PLATFORM</text>
-<path d="M 228,124 H 344 Q 352,124 352,132 V 164" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 228,288 H 344 Q 352,288 352,280 V 260" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 444,212 H 524" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<path d="M 684,212 H 760" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
-<path d="M 420,164 V 32 Q 420,24 428,24 H 832 Q 840,24 840,32 V 164" fill="none" stroke="var(--muted)" stroke-width="1.2" marker-end="url(#arrow)"/>
-<rect x="252" y="104" width="76" height="13" rx="2" fill="var(--paper)"/>
-<text x="290" y="113.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">CIPHERTEXT</text>
-<rect x="260" y="268" width="60" height="13" rx="2" fill="var(--paper)"/>
-<text x="290" y="277.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">AGE KEY</text>
-<rect x="458" y="192" width="52" height="13" rx="2" fill="var(--paper)"/>
-<text x="484" y="201.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">VALUES</text>
-<rect x="692" y="192" width="60" height="13" rx="2" fill="var(--paper)"/>
-<text x="722" y="201.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">AT BOOT</text>
-<rect x="512" y="18" width="236" height="13" rx="2" fill="var(--paper)"/>
-<text x="630" y="27.5" fill="var(--muted)" font-size="9" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEPLOY SHIPS config/, NEVER THE KEY</text>
-<rect x="48" y="88" width="180" height="72" rx="6" fill="var(--paper)"/>
-<rect x="48" y="88" width="180" height="72" rx="6" fill="var(--store)" stroke="var(--muted)"/>
-<rect x="56" y="96" width="36" height="13" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
-<text x="74" y="105.5" fill="var(--muted)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">REPO</text>
-<text x="138" y="124" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">config/</text>
-<text x="138" y="141" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">*.enc.yml, committed</text>
-<text x="138" y="154" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">encrypted at rest</text>
-<rect x="48" y="252" width="180" height="72" rx="6" fill="var(--paper)"/>
-<rect x="48" y="252" width="180" height="72" rx="6" fill="var(--accentFill)" stroke="var(--accent)" stroke-dasharray="4,4"/>
-<rect x="56" y="260" width="32" height="13" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
-<text x="72" y="269.5" fill="var(--accent)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
-<text x="138" y="288" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">SOPS_AGE_KEY</text>
-<text x="138" y="305" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">a CI variable</text>
-<text x="138" y="318" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">the one secret kept</text>
-<rect x="276" y="164" width="168" height="96" rx="6" fill="var(--paper)"/>
-<rect x="276" y="164" width="168" height="96" rx="6" fill="var(--accentFill)" stroke="var(--accent)"/>
-<rect x="284" y="172" width="72" height="13" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
-<text x="320" y="181.5" fill="var(--accent)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEPLOY JOB</text>
-<text x="360" y="212" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">deploy script</text>
-<text x="360" y="229" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">onesecret dotenv</text>
-<text x="360" y="242" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">plaintext in memory only</text>
-<rect x="524" y="164" width="160" height="96" rx="6" fill="var(--paper)"/>
-<rect x="524" y="164" width="160" height="96" rx="6" fill="var(--store)" stroke="var(--line)"/>
-<rect x="532" y="172" width="52" height="13" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
-<text x="558" y="181.5" fill="var(--muted)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">SECRETS</text>
-<text x="604" y="212" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">Platform</text>
-<text x="604" y="229" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">Vercel, Fly.io, AWS,</text>
-<text x="604" y="242" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">Kubernetes, Docker…</text>
-<rect x="760" y="164" width="152" height="96" rx="6" fill="var(--paper)"/>
-<rect x="760" y="164" width="152" height="96" rx="6" fill="var(--app)" stroke="var(--ink)"/>
-<rect x="768" y="172" width="32" height="13" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.8"/>
-<text x="784" y="181.5" fill="var(--ink)" font-size="8" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">APP</text>
-<text x="836" y="212" fill="var(--ink)" font-size="14" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">config()</text>
-<text x="836" y="229" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">finds every value set</text>
-<text x="836" y="242" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">decrypts nothing</text>
-<text x="524" y="304" fill="var(--ink)" font-size="14" font-style="italic" font-family="Georgia, 'Times New Roman', serif">The key never reaches your servers. The app</text>
-<text x="524" y="322" fill="var(--ink)" font-size="14" font-style="italic" font-family="Georgia, 'Times New Roman', serif">reads secrets from the environment, and stops</text>
-<text x="524" y="340" fill="var(--ink)" font-size="14" font-style="italic" font-family="Georgia, 'Times New Roman', serif">at boot, naming any secret that is missing.</text>
+<rect width="760" height="320" rx="12" fill="var(--paper)"/>
+<rect x="16" y="44" width="352" height="260" rx="8" fill="var(--zone)" stroke="var(--line)"/>
+<rect x="32" y="36" width="180" height="16" fill="var(--paper)"/>
+<text x="122" y="47.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.14em">YOUR REPOSITORY AND CI</text>
+<rect x="392" y="44" width="352" height="260" rx="8" fill="var(--zone)" stroke="var(--line)"/>
+<rect x="408" y="36" width="172" height="16" fill="var(--paper)"/>
+<text x="494" y="47.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.14em">YOUR HOSTING PLATFORM</text>
+<path d="M 188,100 H 276 Q 284,100 284,108 V 140" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<path d="M 188,256 H 276 Q 284,256 284,248 V 232" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<path d="M 352,186 H 408" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<path d="M 544,186 H 592" fill="none" stroke="var(--muted)" stroke-width="1.3" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+<path d="M 320,140 V 24 Q 320,16 328,16 H 652 Q 660,16 660,24 V 140" fill="none" stroke="var(--muted)" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="190" y="78" width="92" height="16" rx="2" fill="var(--paper)"/>
+<text x="236" y="90" fill="var(--muted)" font-size="11" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">CIPHERTEXT</text>
+<rect x="202" y="234" width="68" height="16" rx="2" fill="var(--paper)"/>
+<text x="236" y="246" fill="var(--muted)" font-size="11" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">AGE KEY</text>
+<rect x="350" y="164" width="60" height="16" rx="2" fill="var(--paper)"/>
+<text x="380" y="176" fill="var(--muted)" font-size="11" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">VALUES</text>
+<rect x="378" y="8" width="224" height="16" rx="2" fill="var(--paper)"/>
+<text x="490" y="20" fill="var(--muted)" font-size="11" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">SHIPS config/, NEVER THE KEY</text>
+<rect x="32" y="64" width="156" height="72" rx="6" fill="var(--paper)"/>
+<rect x="32" y="64" width="156" height="72" rx="6" fill="var(--store)" stroke="var(--muted)"/>
+<rect x="40" y="72" width="44" height="16" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
+<text x="62" y="83.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">REPO</text>
+<text x="110" y="105.5" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">config/</text>
+<text x="110" y="122.5" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">*.enc.yml, encrypted</text>
+<rect x="32" y="220" width="156" height="72" rx="6" fill="var(--paper)"/>
+<rect x="32" y="220" width="156" height="72" rx="6" fill="var(--accentFill)" stroke="var(--accent)" stroke-dasharray="4,4"/>
+<rect x="40" y="228" width="36" height="16" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
+<text x="58" y="239.5" fill="var(--accent)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">KEY</text>
+<text x="110" y="261.5" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">SOPS_AGE_KEY</text>
+<text x="110" y="278.5" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">a CI variable</text>
+<rect x="216" y="140" width="136" height="92" rx="6" fill="var(--paper)"/>
+<rect x="216" y="140" width="136" height="92" rx="6" fill="var(--accentFill)" stroke="var(--accent)"/>
+<rect x="224" y="148" width="84" height="16" rx="2" fill="none" stroke="var(--accent)" stroke-width="0.8"/>
+<text x="266" y="159.5" fill="var(--accent)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">DEPLOY JOB</text>
+<text x="284" y="184" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">deploy script</text>
+<text x="284" y="201" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">onesecret dotenv</text>
+<text x="284" y="216" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">values in memory</text>
+<rect x="408" y="140" width="136" height="92" rx="6" fill="var(--paper)"/>
+<rect x="408" y="140" width="136" height="92" rx="6" fill="var(--store)" stroke="var(--line)"/>
+<rect x="416" y="148" width="64" height="16" rx="2" fill="none" stroke="var(--muted)" stroke-width="0.8"/>
+<text x="448" y="159.5" fill="var(--muted)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">SECRETS</text>
+<text x="476" y="184" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">Platform</text>
+<text x="476" y="201" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">Vercel, Fly.io,</text>
+<text x="476" y="216" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">AWS, and more</text>
+<rect x="592" y="140" width="136" height="92" rx="6" fill="var(--paper)"/>
+<rect x="592" y="140" width="136" height="92" rx="6" fill="var(--app)" stroke="var(--ink)"/>
+<rect x="600" y="148" width="36" height="16" rx="2" fill="none" stroke="var(--ink)" stroke-width="0.8"/>
+<text x="618" y="159.5" fill="var(--ink)" font-size="10" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle" letter-spacing="0.08em">APP</text>
+<text x="660" y="184" fill="var(--ink)" font-size="16" font-weight="600" font-family="'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">your app</text>
+<text x="660" y="201" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">config() at boot</text>
+<text x="660" y="216" fill="var(--muted)" font-size="12" font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" text-anchor="middle">decrypts nothing</text>
+<text x="408" y="264" fill="var(--ink)" font-size="15" font-style="italic" font-family="Georgia, 'Times New Roman', serif">The key never reaches your servers: the app</text>
+<text x="408" y="284" fill="var(--ink)" font-size="15" font-style="italic" font-family="Georgia, 'Times New Roman', serif">finds every secret already set at boot.</text>
 </svg>

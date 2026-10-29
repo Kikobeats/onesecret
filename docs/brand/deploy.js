@@ -1,89 +1,87 @@
 import { arrow, diagramSvg, label, node, note, zone } from './diagram.js'
 
-export const DEPLOY = { width: 960, height: 400 }
+export const DEPLOY = { width: 760, height: 320 }
 
 const SCENE = [
   ...zone({
-    x: 24,
-    y: 56,
-    width: 440,
-    height: 320,
+    x: 16,
+    y: 44,
+    width: 352,
+    height: 260,
     title: 'YOUR REPOSITORY AND CI'
   }),
   ...zone({
-    x: 500,
-    y: 56,
-    width: 436,
-    height: 320,
+    x: 392,
+    y: 44,
+    width: 352,
+    height: 260,
     title: 'YOUR HOSTING PLATFORM'
   }),
-  arrow('M 228,124 H 344 Q 352,124 352,132 V 164'),
-  arrow('M 228,288 H 344 Q 352,288 352,280 V 260'),
-  arrow('M 444,212 H 524'),
-  arrow('M 684,212 H 760', { dashed: true }),
-  arrow('M 420,164 V 32 Q 420,24 428,24 H 832 Q 840,24 840,32 V 164'),
-  ...label({ cx: 290, y: 104, text: 'CIPHERTEXT' }),
-  ...label({ cx: 290, y: 268, text: 'AGE KEY' }),
-  ...label({ cx: 484, y: 192, text: 'VALUES' }),
-  ...label({ cx: 722, y: 192, text: 'AT BOOT' }),
-  ...label({ cx: 630, y: 18, text: 'DEPLOY SHIPS config/, NEVER THE KEY' }),
+  arrow('M 188,100 H 276 Q 284,100 284,108 V 140'),
+  arrow('M 188,256 H 276 Q 284,256 284,248 V 232'),
+  arrow('M 352,186 H 408'),
+  arrow('M 544,186 H 592', { dashed: true }),
+  arrow('M 320,140 V 24 Q 320,16 328,16 H 652 Q 660,16 660,24 V 140'),
+  ...label({ cx: 236, y: 78, text: 'CIPHERTEXT' }),
+  ...label({ cx: 236, y: 234, text: 'AGE KEY' }),
+  ...label({ cx: 380, y: 164, text: 'VALUES' }),
+  ...label({ cx: 490, y: 8, text: 'SHIPS config/, NEVER THE KEY' }),
   ...node({
-    x: 48,
-    y: 88,
-    width: 180,
+    x: 32,
+    y: 64,
+    width: 156,
     height: 72,
     kind: 'store',
     tag: 'REPO',
     name: 'config/',
-    lines: ['*.enc.yml, committed', 'encrypted at rest']
+    lines: ['*.enc.yml, encrypted']
   }),
   ...node({
-    x: 48,
-    y: 252,
-    width: 180,
+    x: 32,
+    y: 220,
+    width: 156,
     height: 72,
     kind: 'key',
     tag: 'KEY',
     name: 'SOPS_AGE_KEY',
-    lines: ['a CI variable', 'the one secret kept']
+    lines: ['a CI variable']
   }),
   ...node({
-    x: 276,
-    y: 164,
-    width: 168,
-    height: 96,
+    x: 216,
+    y: 140,
+    width: 136,
+    height: 92,
     kind: 'plaintext',
     tag: 'DEPLOY JOB',
     name: 'deploy script',
-    lines: ['onesecret dotenv', 'plaintext in memory only']
+    lines: ['onesecret dotenv', 'values in memory']
   }),
   ...node({
-    x: 524,
-    y: 164,
-    width: 160,
-    height: 96,
+    x: 408,
+    y: 140,
+    width: 136,
+    height: 92,
     kind: 'platform',
     tag: 'SECRETS',
     name: 'Platform',
-    lines: ['Vercel, Fly.io, AWS,', 'Kubernetes, Docker…']
+    lines: ['Vercel, Fly.io,', 'AWS, and more']
   }),
   ...node({
-    x: 760,
-    y: 164,
-    width: 152,
-    height: 96,
+    x: 592,
+    y: 140,
+    width: 136,
+    height: 92,
     kind: 'app',
     tag: 'APP',
-    name: 'config()',
-    lines: ['finds every value set', 'decrypts nothing']
+    name: 'your app',
+    lines: ['config() at boot', 'decrypts nothing']
   }),
   ...note({
-    x: 524,
-    y: 304,
+    x: 408,
+    y: 264,
     lines: [
-      'The key never reaches your servers. The app',
-      'reads secrets from the environment, and stops',
-      'at boot, naming any secret that is missing.'
+      'The key never reaches your servers: the app',
+      'finds every secret already set at boot.'
     ]
   })
 ]

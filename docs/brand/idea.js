@@ -1,14 +1,16 @@
 import { arrow, diagramSvg, label, node, zone } from './diagram.js'
 
-export const IDEA = { width: 960, height: 372 }
+export const IDEA = { width: 760, height: 324 }
 
 const ENVIRONMENTS = ['default', 'staging', 'production']
-const FILE = { x: 284, width: 340, height: 76, top: 72, gap: 12 }
-const KEY = { x: 24, width: 200, height: 80 }
+const FILE = { x: 216, width: 248, height: 72, top: 52, gap: 10 }
+const KEY = { x: 16, width: 152, height: 84 }
+const OUTCOME = { x: 536, width: 208, height: 96 }
+const REPO_RIGHT = 480
 const fileY = index => FILE.top + index * (FILE.height + FILE.gap)
 const fileCenter = index => fileY(index) + FILE.height / 2
 const keyCenter = fileCenter(1)
-const fork = FILE.x - 30
+const fork = FILE.x - 24
 
 const keyToFile = index => {
   const target = fileCenter(index)
@@ -23,28 +25,39 @@ const keyToFile = index => {
   )
 }
 
+const outcome = ({ y, label: text, dashed, ...rest }) => {
+  const center = y + OUTCOME.height / 2
+  return [
+    arrow(`M ${REPO_RIGHT},${center} H ${OUTCOME.x}`, { dashed }),
+    ...label({ cx: (REPO_RIGHT + OUTCOME.x) / 2, y: center - 22, text }),
+    ...node({
+      x: OUTCOME.x,
+      y,
+      width: OUTCOME.width,
+      height: OUTCOME.height,
+      ...rest
+    })
+  ]
+}
+
 const SCENE = [
   ...zone({
-    x: 264,
-    y: 40,
-    width: 380,
-    height: 304,
-    title: 'YOUR REPOSITORY · config/'
+    x: 200,
+    y: 28,
+    width: REPO_RIGHT - 200,
+    height: 276,
+    title: 'YOUR REPOSITORY'
   }),
   ...ENVIRONMENTS.map((_, index) => keyToFile(index)),
-  arrow('M 644,124 H 704'),
-  arrow('M 644,272 H 704', { dashed: true }),
-  ...label({ cx: 674, y: 104, text: 'KEY' }),
-  ...label({ cx: 674, y: 252, text: 'NO KEY' }),
   ...node({
     x: KEY.x,
     y: keyCenter - KEY.height / 2,
     width: KEY.width,
     height: KEY.height,
     kind: 'key',
-    tag: 'THE ONE SECRET',
+    tag: 'KEY',
     name: 'your key',
-    lines: ['kept in a password manager', 'opens every file']
+    lines: ['the one secret', 'you keep']
   }),
   ...ENVIRONMENTS.flatMap((environment, index) =>
     node({
@@ -55,36 +68,30 @@ const SCENE = [
       kind: 'store',
       tag: environment.toUpperCase(),
       name: `${environment}.enc.yml`,
-      lines: [
-        'DATABASE_URL: ENC[AES256_GCM,…]',
-        'STRIPE_KEY: ENC[AES256_GCM,…]'
-      ]
+      lines: ['DATABASE_URL: ENC[…]']
     })
   ),
-  ...node({
-    x: 704,
-    y: 72,
-    width: 232,
-    height: 104,
+  ...outcome({
+    y: 52,
+    label: 'KEY',
     kind: 'app',
     tag: 'YOU, TEAMMATES, CI',
     name: 'every value',
     lines: ['DATABASE_URL=postgres://…', 'STRIPE_KEY=sk_live_…']
   }),
-  ...node({
-    x: 704,
-    y: 220,
-    width: 232,
-    height: 104,
+  ...outcome({
+    y: 192,
+    label: 'NO KEY',
+    dashed: true,
     kind: 'platform',
-    tag: 'A FORK, A LEAK, AN OLD COMMIT',
+    tag: 'FORK, LEAK, OLD COMMIT',
     name: 'names only',
     lines: ['DATABASE_URL: ENC[…]', 'STRIPE_KEY: ENC[…]']
   })
 ]
 
 const DESCRIPTION =
-  'One key, kept in a password manager, opens every encrypted file in the repository, one per environment. With the key, you, your teammates, and CI read every value; without it, a fork, a leak, or an old commit shows only the secret names.'
+  'One key opens every encrypted file in the repository, one per environment. With the key, you, your teammates, and CI read every value; without it, a fork, a leak, or an old commit shows only the secret names.'
 
 export const ideaSvg = () =>
   diagramSvg({
