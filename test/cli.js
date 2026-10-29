@@ -70,7 +70,7 @@ test('init prints a new key without saving it, writes only an empty default laye
   const recipient = first.stdout.match(/age1\w+/)[0]
   const [key] = first.stdout.match(/AGE-SECRET-KEY-1\w+/)
   t.is(require('../src/age').recipientOf(key), recipient)
-  t.regex(first.stdout, new RegExp(`^  export SOPS_AGE_KEY=${key}$`, 'm'))
+  t.regex(first.stdout, new RegExp(`^export SOPS_AGE_KEY=${key}$`, 'm'))
   t.false(fs.existsSync(path.join(env.XDG_CONFIG_HOME, 'sops')))
   t.false(fs.existsSync(path.join(env.HOME, 'Library')))
   t.false(fs.existsSync(path.join(cwd, '.sops.yaml')))
@@ -873,7 +873,7 @@ test('init prints where everything went', t => {
   t.regex(lines[4], /only secret to keep/)
   t.regex(lines[5], /shown only now and saved nowhere, so store it safely/)
   t.regex(lines[6], /SOPS_AGE_KEY in CI/)
-  t.is(lines.at(-1), `  export SOPS_AGE_KEY=${lines[1].split(/\s+/).at(-1)}`)
+  t.is(lines.at(-1), `export SOPS_AGE_KEY=${lines[1].split(/\s+/).at(-1)}`)
 })
 
 test('.sops.yaml recipients may be separated by commas and spaces', t => {

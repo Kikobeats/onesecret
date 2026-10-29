@@ -123,13 +123,13 @@
 <body>
   <main id="seo-content" aria-label="onesecret overview">
     <h1>onesecret</h1>
-    <p>Keep just one secret to decrypt the rest. Commit your credentials encrypted next to your code, and keep a single age key to read them.</p>
-    <p>The files are SOPS files, so the sops CLI keeps working, but nothing has to be installed: encryption and decryption run in Node.js with no native binaries.</p>
+    <p>Keep just one secret to decrypt the rest. onesecret keeps your app's secrets in your repository, encrypted, right next to the code that uses them, and one key opens all of them.</p>
+    <p>A .env file nobody commits gets pasted into chats and drifts out of sync. A secrets manager keeps values away from the pull requests that need them. Plain text in the repository leaks with every clone. Encrypted in the repository, secrets ship and get reviewed with the code, and anyone who sees it learns only their names.</p>
     <ul>
-      <li>One age key decrypts every environment.</li>
-      <li>Plain settings and secrets live side by side in layers, and config() returns them as one object.</li>
-      <li>Production never needs the key: deploys push the decrypted values to the platform, such as Kubernetes, Fly.io, Vercel, or AWS.</li>
-      <li>It fails at boot and names exactly which secret is missing.</li>
+      <li>Secrets ship in the same commit and pull request as the code that needs them.</li>
+      <li>One key opens every secret in every environment.</li>
+      <li>Your servers never hold the key: deploys hand the values to the platform, such as Kubernetes, Fly.io, Vercel, or AWS.</li>
+      <li>No service to depend on: encryption runs in Node.js, and the files are SOPS files the sops CLI also reads.</li>
     </ul>
     <p><a href="https://www.npmjs.com/package/onesecret">Install onesecret from npm</a> or <a href="https://github.com/Kikobeats/onesecret">view the source on GitHub</a>.</p>
   </main>

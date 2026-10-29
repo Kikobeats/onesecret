@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 import opentype from 'opentype.js'
 import sharp from 'sharp'
 import { BANNER, bannerSvg } from './banner.js'
+import { deploySvg } from './deploy.js'
+import { ideaSvg } from './idea.js'
 import { iconSvg, markSvg } from './key.js'
 
 const require = createRequire(import.meta.url)
@@ -50,6 +52,8 @@ const write = (name, contents) => {
 
 const icon = iconSvg()
 write('mark.svg', markSvg())
+write('deploy.svg', deploySvg())
+write('idea.svg', ideaSvg())
 write('logo.svg', icon)
 
 for (const [name, size] of Object.entries(ICON_SIZES)) {

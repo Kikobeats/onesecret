@@ -52,6 +52,22 @@ test('every logo has its icon file and its style rule', t => {
   }
 })
 
+test('syntax colors keep each token class on its role', t => {
+  const roles = {
+    keyword: ['keyword', 'atrule'],
+    name: ['function', 'builtin', 'tag', 'property', 'key', 'constant'],
+    value: ['string', 'char', 'attr-value', 'regex', 'number', 'boolean']
+  }
+  const flat = text => compact(text).replace(/;/g, '')
+  for (const [role, names] of Object.entries(roles)) {
+    const rule = `.token:is(${names
+      .map(name => `.${name}`)
+      .join(',')}){color:var(--token-${role})}`
+    t.true(flat(STYLE).includes(rule), role)
+    t.true(flat(BUILT).includes(rule), `built ${role}`)
+  }
+})
+
 test('an open recipe icon follows hover and keyboard focus', t => {
   t.true(
     STYLE.includes(
