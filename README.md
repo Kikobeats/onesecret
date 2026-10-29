@@ -224,11 +224,7 @@ Migrate this project to onesecret: run npx onesecret init (keep the printed key 
 
 The key decrypts secrets on your laptop and in CI. Your servers never get it. Instead, each deploy decrypts the values and hands them to your hosting platform, which stores them and sets them as environment variables, the way it runs any secret:
 
-```
-your laptop or CI         hosting platform            your app
-key + config/  ─────────▶ stores the values  ───────▶ starts with them already set,
-               deploy     as environment variables    decrypts nothing, holds no key
-```
+![The deploy job decrypts the encrypted config/ files with the one key and hands the values to your hosting platform. Your app starts with every secret already set and never holds the key.](static/deploy.svg)
 
 That keeps the damage of a breach small. The key opens every environment, so it stays with the people and jobs that deploy. A server holds only its own values, so a compromised server leaks those and nothing else.
 

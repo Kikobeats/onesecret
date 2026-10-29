@@ -8,6 +8,7 @@ const { default: test } = require('ava')
 
 const brand = import('../docs/brand/key.js')
 const banner = import('../docs/brand/banner.js')
+const deploy = import('../docs/brand/deploy.js')
 
 const ROOT = join(__dirname, '..')
 const read = (file, encoding) => readFileSync(join(ROOT, file), encoding)
@@ -36,6 +37,20 @@ test('the committed mark and icon are what the brand build generates', async t =
   const { markSvg, iconSvg } = await brand
   t.is(read('static/mark.svg', 'utf8'), markSvg())
   t.is(read('static/logo.svg', 'utf8'), iconSvg())
+})
+
+test('the committed deploy diagram is what the brand build generates', async t => {
+  const { deploySvg } = await deploy
+  t.is(read('static/deploy.svg', 'utf8'), deploySvg())
+})
+
+test('the README shows the deploy diagram in the Deploy section', t => {
+  const readme = read('README.md', 'utf8')
+  const deploySection = readme.slice(
+    readme.indexOf('## Deploy'),
+    readme.indexOf('## How it works')
+  )
+  t.true(deploySection.includes('](static/deploy.svg)'))
 })
 
 test('the blade starts inside the bow ring, clear of the hole', async t => {
