@@ -10,6 +10,8 @@ Your app runs on secrets: a database password, a payment API key, a token for ev
 
 onesecret keeps them in your repository, encrypted, right next to the code that uses them. One key opens all of them, and that key is the only secret you ever have to look after.
 
+![One key, kept in a password manager, opens the encrypted files of every environment in your repository. With the key, you, your teammates, and CI read every value. Without it, a fork, a leak, or an old commit shows only the secret names.](static/idea.svg)
+
 ## Where secrets usually live
 
 Most projects keep them in one of three places, and each one fails in its own way.

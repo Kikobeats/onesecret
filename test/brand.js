@@ -9,6 +9,7 @@ const { default: test } = require('ava')
 const brand = import('../docs/brand/key.js')
 const banner = import('../docs/brand/banner.js')
 const deploy = import('../docs/brand/deploy.js')
+const idea = import('../docs/brand/idea.js')
 
 const ROOT = join(__dirname, '..')
 const read = (file, encoding) => readFileSync(join(ROOT, file), encoding)
@@ -39,17 +40,21 @@ test('the committed mark and icon are what the brand build generates', async t =
   t.is(read('static/logo.svg', 'utf8'), iconSvg())
 })
 
-test('the committed deploy diagram is what the brand build generates', async t => {
+test('the committed diagrams are what the brand build generates', async t => {
   const { deploySvg } = await deploy
+  const { ideaSvg } = await idea
   t.is(read('static/deploy.svg', 'utf8'), deploySvg())
+  t.is(read('static/idea.svg', 'utf8'), ideaSvg())
 })
 
-test('the README shows the deploy diagram in the Deploy section', t => {
+test('the README shows the idea diagram before any section, and the deploy diagram in Deploy', t => {
   const readme = read('README.md', 'utf8')
+  const intro = readme.slice(0, readme.indexOf('\n## '))
   const deploySection = readme.slice(
     readme.indexOf('## Deploy'),
     readme.indexOf('## How it works')
   )
+  t.true(intro.includes('](static/idea.svg)'))
   t.true(deploySection.includes('](static/deploy.svg)'))
 })
 
