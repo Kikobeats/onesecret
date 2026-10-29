@@ -1,6 +1,6 @@
 {
   "name": "onesecret",
-  "description": "Keep just one secret to decrypt the rest: SOPS + age secrets for Node.js, with no binaries to install.",
+  "description": "Keep just one secret to decrypt the rest: commit your secrets encrypted in your repo, and open them all with one key.",
   "homepage": "https://onesecret.js.org/",
   "version": "0.2.0",
   "main": "src/index.js",
@@ -34,9 +34,11 @@
     "dotenv",
     "encryption",
     "env",
+    "environment-variables",
     "fly",
     "kubernetes",
     "secrets",
+    "secrets-management",
     "sops"
   ],
   "dependencies": {

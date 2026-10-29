@@ -1,8 +1,8 @@
 # onesecret
 
-> Keep just one secret to decrypt the rest: SOPS + age secrets for Node.js, with no binaries to install.
+> Keep just one secret to decrypt the rest: commit your app's secrets encrypted in your repository, and open them all with one key.
 
-Commit your credentials encrypted next to your code as SOPS files, and keep a single age key to read them. Encryption and decryption run in Node.js, so the sops and age binaries are not needed, and the sops CLI keeps working on the same files.
+Secrets live next to the code as encrypted SOPS files, so they ship and get reviewed in the same commit and pull request, and anyone without the key sees only their names. A single age key opens them all, and production servers never hold it. Encryption and decryption run in Node.js, so the sops and age binaries are not needed, and the sops CLI keeps working on the same files.
 
 - One age key decrypts every environment.
 - Layers: config/default.yml and config/default.enc.yml are shared, config/<env>.yml and config/<env>.enc.yml override them. config() returns one merged object, and env() writes the values into process.env.
