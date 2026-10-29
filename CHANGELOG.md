@@ -1,3 +1,5 @@
+## [1.0.0](https://github.com/kikobeats/onesecret/compare/v0.2.0...v1.0.0) (2026-10-29)
+
 ## [0.2.0](https://github.com/kikobeats/onesecret/compare/v0.1.2...v0.2.0) (2026-10-26)
 
 ### ⚠ BREAKING CHANGES
