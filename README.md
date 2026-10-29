@@ -6,14 +6,42 @@
 
 > Keep just one secret to decrypt the rest.
 
-Put your app's passwords, tokens, and API keys in your repository, encrypted, right next to your code. One key unlocks all of them, and your servers don't even need that key: when you deploy, you hand the values to your hosting platform, and your app finds them already set.
+Your app runs on secrets: a database password, a payment API key, a token for every service it talks to. Each one has to live somewhere, and that place decides how easily it leaks, how a new teammate gets it, and what breaks the day it changes.
 
-## Why onesecret
+onesecret keeps them in your repository, encrypted, right next to the code that uses them. One key opens all of them, and that key is the only secret you ever have to look after.
 
-- **Your secrets are never exposed in your repository.** They are always encrypted there, so anyone who sees the code, a fork, or the git history sees nothing usable. In production your hosting platform holds the values as environment variables, the standard way to run secrets, and the key never reaches your servers. If a server leaks, it leaks only its own values.
-- **One key unlocks everything.** Every secret, in every environment, opens with the same key. Onboarding a teammate or a CI job means sharing that one key, and nothing else.
-- **Works on any platform.** Your app reads plain environment variables, which every host supports: Vercel, Fly.io, Kubernetes, AWS, Docker, or your own server. There is no secrets service to sign up for, pay for, or migrate away from.
-- **Versioned with your code.** Secrets and plain settings live side by side in one `config/` folder, so a change ships in the same commit and pull request as the code that needs it, with history and review.
+## Where secrets usually live
+
+Most projects keep them in one of three places, and each one fails in its own way.
+
+- **A `.env` file nobody commits.** It works on your laptop. Then a teammate joins and the file gets pasted into a chat. A value changes, and everyone else finds out when their app stops working. Nothing records what changed, when, or why.
+- **A secrets manager.** The values sit in a dashboard, away from the code. A pull request that needs a new secret cannot include it, so someone has to remember to add it by hand before the deploy, or the deploy breaks. Changes happen outside code review, and it is one more service to run.
+- **The repository, in plain text.** Everyone has what they need, and so does anyone who ever sees the code. Every clone, fork, and old commit carries your production passwords for good.
+
+The third option has the right idea. Every teammate, CI job, and deploy already has the repository, and git already records every change with its author and its reason. What it lacks is encryption.
+
+## Commit them, encrypted
+
+This is the file onesecret commits for two production secrets:
+
+```yaml
+# config/production.enc.yml
+DATABASE_URL: ENC[AES256_GCM,data:utwdF1b1NkenaKT8QNokprQx…,iv:…,tag:…,type:str]
+STRIPE_KEY: ENC[AES256_GCM,data:jat/60moV+lMPNo8vRzZ,iv:…,tag:…,type:str]
+sops:
+    …  # which key opens the file, and a checksum that catches tampering
+```
+
+The names stay readable, the values do not. Anyone who sees the repository, a fork, or an old commit learns which secrets exist and nothing more. With the key, onesecret turns it back into the values you wrote.
+
+Everything else follows from that:
+
+- **Secrets ship with the code.** A new secret lands in the same commit and pull request as the code that needs it, gets reviewed with it, and keeps the same history.
+- **One key opens everything.** Every secret, in every environment, opens with the same key. A new teammate or CI job needs that key and nothing else.
+- **Your servers never hold the key.** When you deploy, you hand the values to your hosting platform as environment variables, the way hosting platforms already run secrets. A leaked server leaks only its own values.
+- **No service to depend on.** It works on any host: Vercel, Fly.io, Kubernetes, AWS, Docker, or your own server. Encryption runs inside Node.js, with nothing else to install, and the files use the open [SOPS](https://github.com/getsops/sops) format, so the `sops` CLI reads them too. Some deploy recipes below still push values into a platform's own secret store, such as AWS Secrets Manager; git stays the source of truth.
+
+The trade-off is the key itself. Whoever holds it can read every secret, in every environment and every old commit, so guard it like a root password. When a team needs more than one shared key, each person or CI job can have its own, as [How it works](#separate-keys-per-person) explains.
 
 ## Install
 
@@ -24,6 +52,8 @@ $ npm install onesecret
 ```
 
 ## Quick start
+
+Three steps: create the key, encrypt a secret, and read it from your app.
 
 **1. Create your key.**
 
@@ -38,47 +68,80 @@ The private key is the only secret to keep: it decrypts all the others.
 It is shown only now and saved nowhere, so store it safely (and as
 SOPS_AGE_KEY in CI). To use it in this shell:
 
-export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
+  export SOPS_AGE_KEY=AGE-SECRET-KEY-1…
 ```
 
-The private key is the only secret you need to keep: it decrypts all the others. It is shown only once and saved nowhere, so store it somewhere safe and never commit it. You don't need to keep the public key, since it is already written into the encrypted file.
+onesecret encrypts with [age](https://age-encryption.org), a small modern encryption tool, and writes files in the SOPS format, which is where the name `SOPS_AGE_KEY` comes from. The private key decrypts: copy it into your password manager now, and never commit it. The public key only encrypts, and it is already written into the file, so you don't need to keep it. Then run the `export` line, so the next commands can use the key.
 
-**2. Add your settings and secrets, then commit them.**
+**2. Encrypt a secret, and commit it.**
 
-Everything lives in the `config/` folder. Plain settings go in `.yml` files, secrets go encrypted in `.enc.yml` files, and each file name is an environment. This step ends with:
-
-```
-config/default.yml          ← PORT, for every environment
-config/default.enc.yml      ← DATABASE_URL, encrypted, for every environment
-config/production.enc.yml   ← DATABASE_URL, encrypted, for production only
+```bash
+$ npx onesecret set DATABASE_URL
+$ git add config && git commit -m "Add DATABASE_URL"
 ```
 
-`default` is the base. An environment such as `production` adds its own values on top and wins where both have the same name.
+`set` opens your editor (`$VISUAL` or `$EDITOR`, otherwise `vi`) for the value, so it never ends up in your shell history, and encrypts it into `config/default.enc.yml` when you save.
 
-Run the `export` line that `init` printed, then:
+Settings that are not secret, such as a port, go in a plain file next to it:
 
 ```bash
 $ echo 'PORT: 3000' > config/default.yml
-$ npx onesecret set DATABASE_URL
-$ npx onesecret set --env production DATABASE_URL
-$ git add config && git commit -m "Add config"
 ```
 
-`set` opens your editor (`$VISUAL` or `$EDITOR`, otherwise `vi`) for the value, so it never ends up in your shell history. In a script, pipe it in instead: `printf %s "$VALUE" | npx onesecret set NAME`.
-
-**3. Load them when your app starts.**
+**3. Read them when your app starts.**
 
 `config()` returns your settings and secrets as one object:
 
 ```js
-const onesecret = require('onesecret')
+const config = require('onesecret').config()
 
-// it reads process.env by default
-const config = onesecret.config()
-
-// Read any setting or secret by name
 config.PORT // 3000
 config.DATABASE_URL // 'postgres://…'
+```
+
+If your code already reads `process.env`, as with dotenv, call `env()` instead. It puts every value into `process.env`:
+
+```js
+require('onesecret').env()
+
+process.env.DATABASE_URL // 'postgres://…'
+```
+
+onesecret decrypts with the key you exported. Without a key, the app stops at startup and names each secret it could not read, instead of running with a value missing:
+
+```
+onesecret: DATABASE_URL is not set and cannot be decrypted, no age key found: …
+```
+
+That is the whole loop. To see it in a real project, run the [example app](https://github.com/Kikobeats/onesecret/tree/master/example).
+
+## Environments
+
+So far everything went into `default`, the base every environment shares. Each environment adds a layer on top of it: a plain file and an encrypted file named after the environment. To give production its own database:
+
+```bash
+$ npx onesecret set --env production DATABASE_URL
+```
+
+Each environment can have a plain file for settings and an encrypted file for secrets, and every file is optional:
+
+```
+config/default.yml           ← settings for every environment
+config/default.enc.yml       ← secrets for every environment
+config/production.yml        ← settings for production only
+config/production.enc.yml    ← secrets for production only
+```
+
+Your app reads `default` and then the environment named by `NODE_ENV` (`development` when unset), and the environment wins where both have the same name. Inside one layer, the encrypted file is read after the plain one and wins. Nested settings merge key by key, so `production.yml` can change `database.pool` and keep the rest of `database` from `default.yml`.
+
+A new environment opens with the same key, so there is nothing to set up: `staging` is one `set --env staging` away.
+
+## Reading values
+
+Besides plain property access, the object `config()` returns has helpers for optional and required values:
+
+```js
+const config = require('onesecret').config()
 
 // Optional values: fall back to a default when unset
 config.get('LOG_LEVEL', 'info') // 'info'
@@ -96,22 +159,6 @@ const { DATABASE_URL, PORT } = config.required // the same, for several names at
 // OnesecretError: onesecret: "DATABASE_URL" is required but not set in the "production" config
 ```
 
-If your code already reads `process.env`, as with dotenv, call `env()` instead. It puts every value into `process.env`:
-
-```js
-require('onesecret').env()
-
-process.env.DATABASE_URL // 'postgres://…'
-```
-
-onesecret decrypts with the key you exported. Without a key, it stops and tells you which secret it could not read:
-
-```
-onesecret: DATABASE_URL is not set and cannot be decrypted, no age key found: …
-```
-
-To see it all working, run the [example app](https://github.com/Kikobeats/onesecret/tree/master/example).
-
 ## Everyday tasks
 
 ### Add or change a secret
@@ -120,6 +167,8 @@ To see it all working, run the [example app](https://github.com/Kikobeats/onesec
 $ npx onesecret set API_TOKEN
 $ npx onesecret set --env production API_TOKEN
 ```
+
+`set` opens your editor for the value. In a script, pipe it in instead, with `printf %s` so no newline is added: `printf %s "$VALUE" | npx onesecret set NAME`.
 
 To change several at once, open the whole file. You edit it decrypted, and it is encrypted again when you save:
 
@@ -173,9 +222,17 @@ Migrate this project to onesecret: run npx onesecret init (keep the printed key 
 
 ## Deploy
 
-In production, your deploy script sends the secret values to your hosting platform (Vercel, Fly.io, Kubernetes, AWS, and so on), which sets them as environment variables. At startup, your app finds them already set and decrypts nothing.
+The key decrypts secrets on your laptop and in CI. Your servers never get it. Instead, each deploy decrypts the values and hands them to your hosting platform, which stores them and sets them as environment variables, the way it runs any secret:
 
-Ship the `config/` folder with your app. It holds your plain settings and the list of secret names, so the app can still tell you if one is missing.
+```
+your laptop or CI         hosting platform            your app
+key + config/  ─────────▶ stores the values  ───────▶ starts with them already set,
+               deploy     as environment variables    decrypts nothing, holds no key
+```
+
+That keeps the damage of a breach small. The key opens every environment, so it stays with the people and jobs that deploy. A server holds only its own values, so a compromised server leaks those and nothing else.
+
+Ship the `config/` folder with your app. It holds your plain settings and the list of secret names, so the app can still tell you if the platform is missing one.
 
 Pick your platform below. Most recipes use [jq](https://jqlang.org) to handle the values.
 
@@ -183,8 +240,6 @@ Pick your platform below. Most recipes use [jq](https://jqlang.org) to handle th
 <summary data-logo="recipes"><strong>How the recipes work</strong></summary>
 
 Deploys push only the secrets, with their merged values. Plain settings ship inside the image with the `config/` directory.
-
-Keep the `config/` directory in your image: `config()` reads the plain settings from it and the secret names to check that the platform injected every secret, and fails at boot if one is missing.
 
 Every provider is fed with three primitives:
 
@@ -315,7 +370,7 @@ rules = [{ type = "Text", globs = ["config/**/*.yml"], fallthrough = true }]
 const config = require('onesecret').config({ env: 'production', cwd: '/bundle' })
 ```
 
-- `package.json` is not in the bundle, so pass `dir` and `keyCommand` in code. The Workers runtime reports Node.js 22: onesecret ran there in `wrangler dev`, but it is below the supported `engines` range.
+- `package.json` is not in the bundle, so pass `dir` and `keyCommand` ([a command that prints the key](#fetch-the-key-with-a-command)) in code. The Workers runtime reports Node.js 22: onesecret ran there in `wrangler dev`, but it is below the supported `engines` range.
 
 </details>
 
@@ -421,7 +476,7 @@ $ npx onesecret exec --env production -- docker run $(npx onesecret ls --env pro
 <details>
 <summary data-logo="github-actions"><strong>GitHub Actions</strong></summary>
 
-A job that deploys needs a single secret: the age key. onesecret decrypts the rest in the job.
+A job that deploys needs a single secret: the private key from `init`. onesecret decrypts the rest in the job.
 
 ```bash
 $ printf %s "$SOPS_AGE_KEY" | gh secret set SOPS_AGE_KEY --env production
@@ -460,22 +515,11 @@ Other `.env` parsers differ, as the providers above show. When a tool takes JSON
 
 ## How it works
 
-### Your config is a folder of files
+### The files are SOPS files
 
-Each environment can have two files, one for plain settings and one for secrets. Every file is optional.
+The encrypted files are standard [SOPS](https://github.com/getsops/sops) files locked with an [age](https://age-encryption.org) key, which is why the key starts with `AGE-SECRET-KEY-` and lives in `SOPS_AGE_KEY`. The `sops` CLI and other SOPS tools read and write them too, but you don't need to install either: onesecret does the encryption itself.
 
-```
-config/default.yml           ← settings for every environment
-config/default.enc.yml       ← secrets for every environment
-config/production.yml        ← settings for production only
-config/production.enc.yml    ← secrets for production only
-```
-
-onesecret reads them in that order and merges them, so a later file wins. Nested settings are merged key by key, so `production.yml` can change `database.pool` and keep the rest of `database` from `default.yml`.
-
-In the encrypted files, only the values are encrypted. The names stay readable, which is how onesecret knows what should exist without the key, and how `npx onesecret ls` lists them.
-
-The encrypted files are standard [SOPS](https://github.com/getsops/sops) files locked with an [age](https://age-encryption.org) key, so the `sops` CLI and other SOPS tools can read them too. You don't need to install either: onesecret does the encryption itself.
+Only the values are encrypted. The names stay readable, which is how onesecret knows what should exist without the key, and how `npx onesecret ls` lists them.
 
 ### What happens when your app starts
 
