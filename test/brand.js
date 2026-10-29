@@ -10,6 +10,7 @@ const brand = import('../docs/brand/key.js')
 const banner = import('../docs/brand/banner.js')
 const deploy = import('../docs/brand/deploy.js')
 const idea = import('../docs/brand/idea.js')
+const diagram = import('../docs/brand/diagram.js')
 
 const ROOT = join(__dirname, '..')
 const read = (file, encoding) => readFileSync(join(ROOT, file), encoding)
@@ -45,6 +46,45 @@ test('the committed diagrams are what the brand build generates', async t => {
   const { ideaSvg } = await idea
   t.is(read('static/deploy.svg', 'utf8'), deploySvg())
   t.is(read('static/idea.svg', 'utf8'), ideaSvg())
+})
+
+test('diagram text escapes markup in every label', async t => {
+  const { zone, label, node, note, diagramSvg } = await diagram
+  const raw = 'a&b<c>d"e'
+  const escaped = 'a&amp;b&lt;c&gt;d&quot;e'
+  const drawn = node({
+    x: 0,
+    y: 0,
+    width: 40,
+    height: 40,
+    kind: 'store',
+    tag: raw,
+    name: raw,
+    lines: [raw]
+  }).join('')
+  t.true(
+    zone({ x: 0, y: 0, width: 1, height: 1, title: raw })
+      .join('')
+      .includes(escaped)
+  )
+  t.true(label({ cx: 0, y: 0, text: raw }).includes(escaped))
+  t.is(drawn.split(escaped).length - 1, 3)
+  t.true(
+    note({ x: 0, y: 0, lines: [raw] })
+      .join('')
+      .includes(escaped)
+  )
+  t.is(
+    diagramSvg({
+      width: 1,
+      height: 1,
+      slug: 'probe',
+      title: raw,
+      description: raw,
+      scene: []
+    }).split(escaped).length - 1,
+    2
+  )
 })
 
 test('the README shows the idea diagram before any section, and the deploy diagram in Deploy', t => {
