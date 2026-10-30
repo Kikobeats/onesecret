@@ -102,9 +102,9 @@ export const Deploy: React.FC = () => {
     <Background>
       <StepTitle step="②" title="CI decrypts in memory" />
       <div style={{ marginTop: 60, display: "flex", flexDirection: "column" }}>
-        <Node tag="REPO + KEY" name="config/*.enc.yml" detail="encrypted, plus the one key" tone="store" at={0.6 * fps} />
+        <Node tag="REPO" name="config/*.enc.yml" detail="encrypted, committed" tone="store" at={0.6 * fps} />
         <Flow at={1.6 * fps} label="CIPHERTEXT" />
-        <Node tag="CI" name="deploy job" detail="onesecret dotenv, in memory" tone="accent" at={2.3 * fps} />
+        <Node tag="CI" name="deploy job" detail="key from a CI secret, decrypts in memory" tone="accent" at={2.3 * fps} />
         <Flow at={3.3 * fps} label="VALUES" />
         <Node tag="PLATFORM" name="Vercel, Fly.io, AWS…" detail="stores them as env vars" tone="app" at={4 * fps} />
       </div>
