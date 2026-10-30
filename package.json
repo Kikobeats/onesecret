@@ -137,7 +137,8 @@
   },
   "standard": {
     "ignore": [
-      "docs/cover/shaders.js"
+      "docs/cover/shaders.js",
+      "video/"
     ]
   }
 }
