@@ -8,14 +8,37 @@ export const Outro: React.FC = () => {
   const { fps } = useVideoConfig();
   return (
     <Background>
-      <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", gap: 56 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 34, ...enter(frame, 0) }}>
+      <AbsoluteFill
+        style={{ alignItems: "center", justifyContent: "center", gap: 56 }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 34,
+            ...enter(frame, 0),
+          }}
+        >
           <Mark height={104} />
-          <span style={{ fontFamily: FONT.heading, fontSize: 124, fontWeight: 700, letterSpacing: "-0.02em" }}>
+          <span
+            style={{
+              fontFamily: FONT.heading,
+              fontSize: 124,
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+            }}
+          >
             onesecret
           </span>
         </div>
-        <p style={{ fontSize: 50, margin: 0, color: COLOR.ink, ...enter(frame, 0.4 * fps) }}>
+        <p
+          style={{
+            fontSize: 50,
+            margin: 0,
+            color: COLOR.ink,
+            ...enter(frame, 0.4 * fps),
+          }}
+        >
           Keep just one secret to decrypt the rest.
         </p>
         <div
@@ -31,7 +54,15 @@ export const Outro: React.FC = () => {
         >
           <span style={{ color: COLOR.accent }}>$ </span>npm install onesecret
         </div>
-        <p style={{ fontFamily: FONT.mono, fontSize: 38, margin: 0, color: COLOR.muted, ...enter(frame, 1.2 * fps) }}>
+        <p
+          style={{
+            fontFamily: FONT.mono,
+            fontSize: 38,
+            margin: 0,
+            color: COLOR.muted,
+            ...enter(frame, 1.2 * fps),
+          }}
+        >
           onesecret.js.org
         </p>
       </AbsoluteFill>

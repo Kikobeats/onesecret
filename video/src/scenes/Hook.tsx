@@ -4,12 +4,23 @@ import { COLOR, FONT } from "../theme";
 import { Background, Mark, enter } from "../ui";
 
 const SECRETS = [
-  { name: "DATABASE_URL", plain: "postgres://app:s3cr3t@db.prod", cipher: "ENC[AES256_GCM,data:jPk9QuaL…]" },
-  { name: "STRIPE_KEY", plain: "sk_live_51H8xQ2", cipher: "ENC[AES256_GCM,data:fboHl//c…]" },
+  {
+    name: "DATABASE_URL",
+    plain: "postgres://app:s3cr3t@db.prod",
+    cipher: "ENC[AES256_GCM,data:jPk9QuaL…]",
+  },
+  {
+    name: "STRIPE_KEY",
+    plain: "sk_live_51H8xQ2",
+    cipher: "ENC[AES256_GCM,data:fboHl//c…]",
+  },
 ];
 
-
-const SecretLine: React.FC<{ name: string; plain: string; cipher: string }> = ({ name, plain, cipher }) => {
+const SecretLine: React.FC<{ name: string; plain: string; cipher: string }> = ({
+  name,
+  plain,
+  cipher,
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const progress = interpolate(frame, [1.8 * fps, 3.2 * fps], [0, 1], {
@@ -31,9 +42,20 @@ export const Hook: React.FC = () => {
   const { fps } = useVideoConfig();
   return (
     <Background>
-      <div style={{ display: "flex", alignItems: "center", gap: 22, ...enter(frame, 0) }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 22,
+          ...enter(frame, 0),
+        }}
+      >
         <Mark height={46} />
-        <span style={{ fontFamily: FONT.heading, fontSize: 52, fontWeight: 700 }}>onesecret</span>
+        <span
+          style={{ fontFamily: FONT.heading, fontSize: 52, fontWeight: 700 }}
+        >
+          onesecret
+        </span>
       </div>
       <h1
         style={{

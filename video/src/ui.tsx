@@ -19,14 +19,21 @@ export const enter = (frame: number, start: number, length = 18) => ({
     extrapolateRight: "clamp",
     easing: EASE_OUT,
   }),
-  translate: interpolate(frame, [start, start + length], ["0px 24px", "0px 0px"], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: EASE_OUT,
-  }),
+  translate: interpolate(
+    frame,
+    [start, start + length],
+    ["0px 24px", "0px 0px"],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: EASE_OUT,
+    },
+  ),
 });
 
-export const Background: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+export const Background: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => (
   <AbsoluteFill
     style={{
       backgroundColor: COLOR.bg,
@@ -42,18 +49,35 @@ export const Background: React.FC<{ children: React.ReactNode }> = ({ children }
 );
 
 export const Mark: React.FC<{ height: number }> = ({ height }) => (
-  <Img src={staticFile("mark.svg")} style={{ height, width: (height * 85) / 48 }} />
+  <Img
+    src={staticFile("mark.svg")}
+    style={{ height, width: (height * 85) / 48 }}
+  />
 );
 
-export const StepTitle: React.FC<{ step: string; title: React.ReactNode; start?: number }> = ({
-  step,
-  title,
-  start = 0,
-}) => {
+export const StepTitle: React.FC<{
+  step: string;
+  title: React.ReactNode;
+  start?: number;
+}> = ({ step, title, start = 0 }) => {
   const frame = useCurrentFrame();
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 28, ...enter(frame, start) }}>
-      <span style={{ fontFamily: FONT.heading, fontSize: 84, fontWeight: 700, color: COLOR.accent }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 28,
+        ...enter(frame, start),
+      }}
+    >
+      <span
+        style={{
+          fontFamily: FONT.heading,
+          fontSize: 84,
+          fontWeight: 700,
+          color: COLOR.accent,
+        }}
+      >
         {step}
       </span>
       <span
@@ -71,10 +95,21 @@ export const StepTitle: React.FC<{ step: string; title: React.ReactNode; start?:
   );
 };
 
-export const Caption: React.FC<{ children: React.ReactNode; start: number }> = ({ children, start }) => {
+export const Caption: React.FC<{
+  children: React.ReactNode;
+  start: number;
+}> = ({ children, start }) => {
   const frame = useCurrentFrame();
   return (
-    <p style={{ fontSize: 44, lineHeight: 1.3, color: COLOR.muted, margin: 0, ...enter(frame, start) }}>
+    <p
+      style={{
+        fontSize: 44,
+        lineHeight: 1.3,
+        color: COLOR.muted,
+        margin: 0,
+        ...enter(frame, start),
+      }}
+    >
       {children}
     </p>
   );
@@ -87,14 +122,20 @@ export const useTyped = (text: string, start: number) => {
   return text.slice(0, Math.max(0, Math.min(text.length, count)));
 };
 
-export const typingDuration = (text: string, fps: number) =>
-  Math.ceil((text.length / TYPING_CHARS_PER_SECOND) * fps);
-
 type Line =
   | { kind: "command"; text: string; at: number }
-  | { kind: "output"; text: string; at: number; tone?: "accent" | "warning" | "muted" };
+  | {
+      kind: "output";
+      text: string;
+      at: number;
+      tone?: "accent" | "warning" | "muted";
+    };
 
-const TONE = { accent: COLOR.accent, warning: COLOR.warning, muted: COLOR.muted };
+const TONE = {
+  accent: COLOR.accent,
+  warning: COLOR.warning,
+  muted: COLOR.muted,
+};
 
 const CommandLine: React.FC<{ text: string; at: number }> = ({ text, at }) => {
   const frame = useCurrentFrame();
@@ -106,22 +147,30 @@ const CommandLine: React.FC<{ text: string; at: number }> = ({ text, at }) => {
     <div>
       <span style={{ color: COLOR.accent }}>$ </span>
       {typed}
-      {typing && cursorOn ? <span style={{ color: COLOR.accent }}>▍</span> : null}
+      {typing && cursorOn ? (
+        <span style={{ color: COLOR.accent }}>▍</span>
+      ) : null}
     </div>
   );
 };
 
-const OutputLine: React.FC<{ text: string; at: number; tone?: keyof typeof TONE }> = ({ text, at, tone = "muted" }) => {
+const OutputLine: React.FC<{
+  text: string;
+  at: number;
+  tone?: keyof typeof TONE;
+}> = ({ text, at, tone = "muted" }) => {
   const frame = useCurrentFrame();
   if (frame < at) return null;
-  return <div style={{ color: TONE[tone], ...enter(frame, at, 8) }}>{text}</div>;
+  return (
+    <div style={{ color: TONE[tone], ...enter(frame, at, 8) }}>{text}</div>
+  );
 };
 
-export const Terminal: React.FC<{ title: string; lines: Line[]; fontSize?: number }> = ({
-  title,
-  lines,
-  fontSize = 30,
-}) => (
+export const Terminal: React.FC<{
+  title: string;
+  lines: Line[];
+  fontSize?: number;
+}> = ({ title, lines, fontSize = 30 }) => (
   <div
     style={{
       background: COLOR.surface,
@@ -144,9 +193,30 @@ export const Terminal: React.FC<{ title: string; lines: Line[]; fontSize?: numbe
         letterSpacing: "0.08em",
       }}
     >
-      <span style={{ width: 14, height: 14, borderRadius: 7, background: COLOR.border }} />
-      <span style={{ width: 14, height: 14, borderRadius: 7, background: COLOR.border }} />
-      <span style={{ width: 14, height: 14, borderRadius: 7, background: COLOR.border }} />
+      <span
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: 7,
+          background: COLOR.border,
+        }}
+      />
+      <span
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: 7,
+          background: COLOR.border,
+        }}
+      />
+      <span
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: 7,
+          background: COLOR.border,
+        }}
+      />
       <span style={{ marginLeft: 12 }}>{title}</span>
     </div>
     <div
@@ -166,7 +236,12 @@ export const Terminal: React.FC<{ title: string; lines: Line[]; fontSize?: numbe
         line.kind === "command" ? (
           <CommandLine key={index} text={line.text} at={line.at} />
         ) : (
-          <OutputLine key={index} text={line.text} at={line.at} tone={line.tone} />
+          <OutputLine
+            key={index}
+            text={line.text}
+            at={line.at}
+            tone={line.tone}
+          />
         ),
       )}
     </div>

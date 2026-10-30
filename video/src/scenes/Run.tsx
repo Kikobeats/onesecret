@@ -11,7 +11,8 @@ export const Run: React.FC = () => {
         step="③"
         title={
           <>
-            Your app reads env vars, just like <span style={{ color: COLOR.accent }}>today</span>
+            Your app reads env vars, just like{" "}
+            <span style={{ color: COLOR.accent }}>today</span>
           </>
         }
       />
@@ -20,8 +21,17 @@ export const Run: React.FC = () => {
           title="production"
           lines={[
             { kind: "command", text: "node server.js", at: 0.8 * fps },
-            { kind: "output", text: "listening on :3000", at: 1.6 * fps, tone: "accent" },
-            { kind: "command", text: "unset STRIPE_KEY && node server.js", at: 3 * fps },
+            {
+              kind: "output",
+              text: "listening on :3000",
+              at: 1.6 * fps,
+              tone: "accent",
+            },
+            {
+              kind: "command",
+              text: "unset STRIPE_KEY && node server.js",
+              at: 3 * fps,
+            },
             {
               kind: "output",
               text: "OnesecretError: onesecret: STRIPE_KEY is not set and cannot be decrypted, no age key found",
@@ -32,7 +42,10 @@ export const Run: React.FC = () => {
         />
       </div>
       <div style={{ marginTop: 56 }}>
-        <Caption start={5.8 * fps}>No key on the server. Missing a secret? It refuses to start, and names it.</Caption>
+        <Caption start={5.8 * fps}>
+          No key on the server. Missing a secret? It refuses to start, and names
+          it.
+        </Caption>
       </div>
     </Background>
   );

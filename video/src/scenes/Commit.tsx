@@ -11,15 +11,29 @@ export const Commit: React.FC = () => {
         <Terminal
           title="your laptop"
           lines={[
-            { kind: "command", text: "npx onesecret set --env production STRIPE_KEY", at: 1 * fps },
-            { kind: "output", text: "config/production.enc.yml encrypted", at: 3.1 * fps, tone: "accent" },
-            { kind: "command", text: 'git commit -am "Add STRIPE_KEY"', at: 4 * fps },
+            {
+              kind: "command",
+              text: "npx onesecret set --env production STRIPE_KEY",
+              at: 1 * fps,
+            },
+            {
+              kind: "output",
+              text: "config/production.enc.yml encrypted",
+              at: 3.1 * fps,
+              tone: "accent",
+            },
+            {
+              kind: "command",
+              text: 'git commit -am "Add STRIPE_KEY"',
+              at: 4 * fps,
+            },
           ]}
         />
       </div>
       <div style={{ marginTop: 70 }}>
         <Caption start={6 * fps}>
-          A new secret ships in the same PR as the code that needs it, reviewed, with history.
+          A new secret ships in the same PR as the code that needs it, reviewed,
+          with history.
         </Caption>
       </div>
     </Background>
