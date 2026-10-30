@@ -115,11 +115,14 @@ export const Caption: React.FC<{
   );
 };
 
+export const typedPrefix = (text: string, count: number) =>
+  text.slice(0, Math.max(0, count));
+
 export const useTyped = (text: string, start: number) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const count = Math.floor(((frame - start) / fps) * TYPING_CHARS_PER_SECOND);
-  return text.slice(0, Math.max(0, Math.min(text.length, count)));
+  return typedPrefix(text, count);
 };
 
 type Line =

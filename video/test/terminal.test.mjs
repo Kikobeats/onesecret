@@ -3,7 +3,8 @@ import test from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { setFrame } from "./remotion-mock.ts";
-import { Terminal } from "../src/ui.tsx";
+import { Hook } from "../src/scenes/Hook";
+import { Terminal, typedPrefix } from "../src/ui.tsx";
 
 const html = (frame, lines) => {
   setFrame(frame);
@@ -11,6 +12,17 @@ const html = (frame, lines) => {
     createElement(Terminal, { title: "shell", lines }),
   );
 };
+
+test("a negative typing count does not walk backwards through the text", () => {
+  assert.equal(typedPrefix("abcdefghij", -1), "");
+  assert.equal(typedPrefix("abcdefghij", 0), "");
+  assert.equal(typedPrefix("abcdefghij", 4), "abcd");
+  assert.equal(typedPrefix("hi", 99), "hi");
+});
+
+test("scene modules resolve without a file extension", () => {
+  assert.equal(typeof Hook, "function");
+});
 
 test("terminal lines follow kind, tone, typing, and the blink", () => {
   const hidden = html(9, [{ kind: "command", text: "abcdefghij", at: 10 }]);
