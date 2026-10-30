@@ -30,3 +30,4 @@ Use pnpm: `npm i` loops while resolving this project's dependencies.
 - `src/scenes/`: one component per scene
 - `src/Launch.tsx`: scene order and fades
 - `public/mark.svg`: copy of `static/mark.svg`
+- `public/onesecret-launch.mp4`: the rendered video, so it can be shared without rendering; render again after changing a scene
